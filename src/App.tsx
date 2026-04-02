@@ -51,7 +51,7 @@ import {
 
 const EXEMPLO_INICIAL = `{
   "produto": {
-    "nome": "Visualizador de JSON",
+    "nome": "Explorador de Estruturas",
     "versao": 1,
     "ativo": true,
     "etiquetas": ["react", "tailwind", "grafo"],
@@ -827,7 +827,7 @@ export default function App() {
           : await toSvg(refAtiva.current, opcoesExportacao);
 
       const link = document.createElement("a");
-      link.download = `fmota-documento-grafo.${formato}`;
+      link.download = `explorador-de-estruturas-grafo.${formato}`;
       link.href = dataUrl;
       link.click();
     } finally {
@@ -1083,54 +1083,101 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="hidden items-center justify-between gap-3 xl:flex">
-                    <label className="flex items-center gap-2 rounded-[18px] border border-(--cor-borda) bg-(--cor-fundo-elevado) px-3 py-2 text-sm text-(--cor-texto-suave)">
-                      <span className="text-[11px] font-medium uppercase tracking-[0.18em]">
-                        Formato
-                      </span>
-                      <select
-                        className="bg-transparent text-sm font-medium text-(--cor-texto) outline-none"
-                        onChange={(evento) =>
-                          aoAlterarFormatoCompartilhadoComparacao(
-                            evento.target.value as FormatoDocumento,
-                          )
-                        }
-                        value={formatoDocumento}
-                      >
-                        {formatosDocumento.map((formato) => (
-                          <option
-                            className="bg-(--cor-fundo-painel)"
-                            key={formato}
-                            value={formato}
-                          >
-                            {obterRotuloFormato(formato)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <button
-                      className={`rounded-full border px-3 py-2 text-sm font-medium transition ${
-                        scrollSincronizadoEditorComparacao
-                          ? "border-(--cor-destaque) bg-(--cor-destaque) text-white"
-                          : "border-(--cor-borda) bg-(--cor-fundo-elevado) text-(--cor-texto) hover:border-(--cor-borda-forte) hover:bg-(--cor-destaque-suave)"
-                      }`}
-                      onClick={() =>
-                        setScrollSincronizadoEditorComparacao((valorAtual) => !valorAtual)
-                      }
-                      type="button"
-                    >
-                      {scrollSincronizadoEditorComparacao
-                        ? "Scroll sincronizado nos editores"
-                        : "Scroll livre nos editores"}
-                    </button>
-                  </div>
-
                   <div
-                    className="hidden h-[calc(100dvh-1.5rem)] min-h-130 flex-col gap-3 sm:h-[calc(100dvh-2rem)] xl:flex"
-                    ref={painelEditoresComparacaoRef}
-                    style={estiloPainelEditoresComparacao}
+                    className="hidden h-[calc(100dvh-1.5rem)] min-h-130 flex-col gap-2 sm:h-[calc(100dvh-2rem)] xl:flex"
                   >
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="flex items-center gap-2 rounded-2xl border border-(--cor-borda) bg-(--cor-fundo-elevado) px-3 py-2 text-sm text-(--cor-texto-suave)">
+                        <span className="text-[11px] font-medium uppercase tracking-[0.16em]">
+                          Formato
+                        </span>
+                        <select
+                          className="bg-transparent text-sm font-medium text-(--cor-texto) outline-none"
+                          onChange={(evento) =>
+                            aoAlterarFormatoCompartilhadoComparacao(
+                              evento.target.value as FormatoDocumento,
+                            )
+                          }
+                          value={formatoDocumento}
+                        >
+                          {formatosDocumento.map((formato) => (
+                            <option
+                              className="bg-(--cor-fundo-painel)"
+                              key={formato}
+                              value={formato}
+                            >
+                              {obterRotuloFormato(formato)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <button
+                        aria-label={
+                          scrollSincronizadoEditorComparacao
+                            ? "Desativar scroll sincronizado nos editores"
+                            : "Ativar scroll sincronizado nos editores"
+                        }
+                        aria-pressed={scrollSincronizadoEditorComparacao}
+                        className={`flex size-11 items-center justify-center rounded-full border transition ${
+                          scrollSincronizadoEditorComparacao
+                            ? "border-(--cor-destaque) bg-(--cor-destaque) text-white"
+                            : "border-(--cor-borda) bg-(--cor-fundo-elevado) text-(--cor-texto) hover:border-(--cor-borda-forte) hover:bg-(--cor-destaque-suave)"
+                        }`}
+                        onClick={() =>
+                          setScrollSincronizadoEditorComparacao((valorAtual) => !valorAtual)
+                        }
+                        title={
+                          scrollSincronizadoEditorComparacao
+                            ? "Desativar scroll sincronizado"
+                            : "Ativar scroll sincronizado"
+                        }
+                        type="button"
+                      >
+                        <svg
+                          aria-hidden="true"
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            d="M8 7a3 3 0 0 1 3-3h4"
+                            stroke="currentColor"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="1.8"
+                          />
+                          <path
+                            d="M16 17a3 3 0 0 1-3 3H9"
+                            stroke="currentColor"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="1.8"
+                          />
+                          <path
+                            d="M9 10l3-3 3 3"
+                            stroke="currentColor"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="1.8"
+                          />
+                          <path
+                            d="M15 14l-3 3-3-3"
+                            stroke="currentColor"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="1.8"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+
+                    <div
+                      className="min-h-0 flex-1"
+                      ref={painelEditoresComparacaoRef}
+                      style={estiloPainelEditoresComparacao}
+                    >
+                      <div className="flex h-full min-h-0 flex-col gap-3">
                     {editorReferenciaRecolhido ? (
                       <button
                         className="rounded-3xl border border-(--cor-borda) bg-(--cor-fundo-elevado) px-4 py-3 text-sm font-semibold text-(--cor-texto) transition hover:border-(--cor-borda-forte) hover:bg-(--cor-destaque-suave)"
@@ -1194,6 +1241,8 @@ export default function App() {
                         titulo={`${obterRotuloFormato(formatoDocumento)} modificado`}
                         usarAlturaCompleta={false}
                       />
+                    </div>
+                      </div>
                     </div>
                   </div>
 
