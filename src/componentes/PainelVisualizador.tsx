@@ -33,6 +33,7 @@ export interface PropsPainelVisualizador {
   visualizacaoReferenciaDisponivel: boolean;
   exportacaoDisponivel: boolean;
   editorRecolhido: boolean;
+  miniMapaVisivel: boolean;
   resultadosBuscaQuantidade: number;
   jsonBruto: string;
   jsonReferenciaBruto: string;
@@ -63,6 +64,7 @@ export interface PropsPainelVisualizador {
   aoAlternarEditor: () => void;
   aoAlterarTermoBusca: (termo: string) => void;
   aoAlterarFiltroBusca: (filtro: FiltroBusca) => void;
+  aoAlternarMiniMapa: () => void;
   aoIrParaResultadoAnterior: () => void;
   aoIrParaProximoResultado: () => void;
   aoSelecionarCaminhoBreadcrumb: (caminho: Array<string | number>) => void;
@@ -140,6 +142,7 @@ export function PainelVisualizador({
   visualizacaoReferenciaDisponivel,
   exportacaoDisponivel,
   editorRecolhido,
+  miniMapaVisivel,
   resultadosBuscaQuantidade,
   jsonBruto,
   jsonReferenciaBruto,
@@ -170,6 +173,7 @@ export function PainelVisualizador({
   aoAlternarEditor,
   aoAlterarTermoBusca,
   aoAlterarFiltroBusca,
+  aoAlternarMiniMapa,
   aoIrParaResultadoAnterior,
   aoIrParaProximoResultado,
   aoSelecionarCaminhoBreadcrumb,
@@ -325,6 +329,19 @@ export function PainelVisualizador({
                 >
                   Recolher Tudo
                 </button>
+                {(!modoComparacaoAtivo && modoVisualizacao === "grafo") ||
+                (modoComparacaoAtivo && submodoComparacao === "grafo") ? (
+                  <button
+                    className="rounded-2xl px-4 py-3 text-left text-sm text-[color:var(--cor-texto)] transition hover:bg-[color:var(--cor-destaque-suave)]"
+                    onClick={() => {
+                      aoAlternarMiniMapa();
+                      menuVisualizadorRef.current?.removeAttribute("open");
+                    }}
+                    type="button"
+                  >
+                    {miniMapaVisivel ? "Ocultar mini mapa" : "Mostrar mini mapa"}
+                  </button>
+                ) : null}
                 {!modoComparacaoAtivo && modoVisualizacao === "grafo" ? (
                   <button
                     className="rounded-2xl px-4 py-3 text-left text-sm text-[color:var(--cor-texto)] transition hover:bg-[color:var(--cor-destaque-suave)] disabled:cursor-not-allowed disabled:opacity-45"
@@ -512,6 +529,7 @@ export function PainelVisualizador({
               aoEditarNo={aoEditarNo}
               containerRef={graficoRef}
               idsCorrespondentes={idsCorrespondentes}
+              miniMapaVisivel={miniMapaVisivel}
               noAtivoId={noAtivoId ?? resultadoAtualId}
               nosExpandidos={nosExpandidos}
               raiz={arvoreJson}
@@ -574,6 +592,7 @@ export function PainelVisualizador({
                     containerRef={graficoComparacaoReferenciaRef}
                     idsCorrespondentes={new Set<string>()}
                     mapaDiferencas={mapaDiferencasReferencia}
+                    miniMapaVisivel={miniMapaVisivel}
                     nosExpandidos={nosExpandidos}
                     permitirEdicao={false}
                     raiz={arvoreReferenciaJson}
@@ -619,6 +638,7 @@ export function PainelVisualizador({
                     containerRef={graficoComparacaoAtualRef}
                     idsCorrespondentes={idsCorrespondentes}
                     mapaDiferencas={mapaDiferencasAtual}
+                    miniMapaVisivel={miniMapaVisivel}
                     noAtivoId={noAtivoId ?? resultadoAtualId}
                     nosExpandidos={nosExpandidos}
                     raiz={arvoreJson}

@@ -126,6 +126,9 @@ export default function App() {
   const [redimensionandoReferencia, setRedimensionandoReferencia] = useState(false);
   const [feedbackCopia, setFeedbackCopia] = useState("");
   const [editorReferenciaRecolhido, setEditorReferenciaRecolhido] = useState(false);
+  const [miniMapaVisivel, setMiniMapaVisivel] = useState(
+    workspaceInicial.miniMapaVisivel,
+  );
   const [abaEditorComparacao, setAbaEditorComparacao] = useState<"atual" | "referencia">(
     "atual",
   );
@@ -173,7 +176,7 @@ export default function App() {
     larguraPainelEditor,
     editorRecolhido,
     presetLayoutGrafo: workspacePersistidoPadrao.presetLayoutGrafo,
-    miniMapaVisivel: workspacePersistidoPadrao.miniMapaVisivel,
+    miniMapaVisivel,
   });
 
   useEffect(() => {
@@ -663,6 +666,7 @@ export default function App() {
       mapaDiferencasAtual={mapaDiferencasAtual}
       mapaDiferencasReferencia={mapaDiferencasReferencia}
       menuVisualizadorRef={menuVisualizadorRef}
+      miniMapaVisivel={miniMapaVisivel}
       modoPainelVisualizador={modoPainelVisualizador}
       modoVisualizacao={modoVisualizacao}
       noAtivoId={noAtivoId}
@@ -673,6 +677,7 @@ export default function App() {
       submodoComparacao={submodoComparacao}
       temaAplicacao={temaAplicacao}
       termoBusca={termoBusca}
+      aoAlternarMiniMapa={() => setMiniMapaVisivel((valorAtual) => !valorAtual)}
       visualizacaoDisponivel={visualizacaoDisponivel}
       visualizacaoReferenciaDisponivel={visualizacaoReferenciaDisponivel}
       visualizadorTelaCheia={visualizadorTelaCheia}
