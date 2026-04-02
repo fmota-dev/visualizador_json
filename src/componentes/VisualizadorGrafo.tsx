@@ -122,21 +122,27 @@ function ObservadorDeFoco({
     useReactFlow<Node<DadosNoGrafoInterativo>>();
 
   useEffect(() => {
-    if (resultadoAtualId) {
-      const no = getNode(resultadoAtualId);
-      if (no) {
-        setCenter(no.position.x + 120, no.position.y + 60, {
-          duration: 350,
-          zoom: 1.02,
-        });
-        return;
+    const temporizador = window.setTimeout(() => {
+      if (resultadoAtualId) {
+        const no = getNode(resultadoAtualId);
+        if (no) {
+          setCenter(no.position.x + 120, no.position.y + 60, {
+            duration: 350,
+            zoom: 1.02,
+          });
+          return;
+        }
       }
-    }
 
-    void fitView({
-      duration: 350,
-      padding: 0.2,
-    });
+      void fitView({
+        duration: 350,
+        padding: 0.24,
+      });
+    }, 40);
+
+    return () => {
+      window.clearTimeout(temporizador);
+    };
   }, [fitView, getNode, nodes, resultadoAtualId, setCenter]);
 
   return null;
@@ -199,7 +205,7 @@ function GrafoInterno({
 
   if (!raiz) {
     return (
-      <div className="flex h-full min-h-[420px] items-center justify-center rounded-[30px] border border-dashed border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] p-8 text-center text-[color:var(--cor-texto-suave)]">
+      <div className="flex h-full min-h-[320px] items-center justify-center rounded-[26px] border border-dashed border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] p-8 text-center text-[color:var(--cor-texto-suave)]">
         Corrija o JSON para liberar a visualizacao em grafo.
       </div>
     );
@@ -207,12 +213,16 @@ function GrafoInterno({
 
   return (
     <div
-      className="linha-grade h-full min-h-[420px] overflow-hidden rounded-[30px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)]"
+      className="painel-visualizador-canvas linha-grade h-full min-h-[320px] w-full overflow-hidden rounded-[26px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)]"
       ref={containerRef}
     >
       <ReactFlow<Node<DadosNoGrafoInterativo>>
+        className="bg-transparent"
+        defaultViewport={{ x: 0, y: 0, zoom: 0.92 }}
         edges={edges}
         fitView
+        fitViewOptions={{ padding: 0.24 }}
+        minZoom={0.2}
         nodes={nodes}
         nodeTypes={nodeTypes}
         onNodeClick={(_, node) => {
@@ -224,7 +234,7 @@ function GrafoInterno({
         proOptions={{ hideAttribution: true }}
       >
         <Background color="var(--cor-borda)" gap={24} size={1} />
-        <Controls />
+        <Controls position="top-right" showInteractive={false} />
         <ObservadorDeFoco nodes={nodes} resultadoAtualId={resultadoAtualId} />
       </ReactFlow>
     </div>

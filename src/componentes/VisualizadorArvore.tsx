@@ -75,7 +75,8 @@ function ItemArvore({
   const expansivel = no.filhos.length > 0;
   const expandido = !expansivel || nosExpandidos.has(no.id);
   const correspondeBusca = idsCorrespondentes.has(no.id);
-  const relacionadoBusca = correspondeBusca || idsAncestres.has(no.id) || !termoBusca.trim();
+  const relacionadoBusca =
+    correspondeBusca || idsAncestres.has(no.id) || !termoBusca.trim();
 
   return (
     <div className="space-y-2" data-no-id={no.id}>
@@ -176,32 +177,27 @@ export function VisualizadorArvore({
 
   if (!raiz) {
     return (
-      <div className="flex h-full min-h-[420px] items-center justify-center rounded-[30px] border border-dashed border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] p-8 text-center text-[color:var(--cor-texto-suave)]">
+      <div className="flex h-full min-h-[320px] items-center justify-center rounded-[26px] border border-dashed border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] p-8 text-center text-[color:var(--cor-texto-suave)]">
         Corrija o JSON para liberar a visualizacao em arvore.
       </div>
     );
   }
 
   return (
-    <div className="flex h-full min-h-[420px] flex-col rounded-[30px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)]">
-      <div className="border-b border-[color:var(--cor-borda)] px-5 py-4">
-        <p className="text-xs uppercase tracking-[0.28em] text-[color:var(--cor-texto-suave)]">
-          Visualizador
-        </p>
-        <h2 className="text-xl font-semibold text-[color:var(--cor-texto)]">Modo Arvore</h2>
-      </div>
-      <div className="flex-1 overflow-auto px-4 py-4" ref={containerRef}>
-        <ItemArvore
-          aoAlternarExpansao={aoAlternarExpansao}
-          aoEditarNo={aoEditarNo}
-          idsAncestres={idsAncestres}
-          idsCorrespondentes={idsCorrespondentes}
-          no={raiz}
-          nosExpandidos={nosExpandidos}
-          resultadoAtualId={resultadoAtualId}
-          termoBusca={termoBusca}
-        />
-      </div>
+    <div
+      className="h-full min-h-0 overflow-auto rounded-[26px] bg-transparent pr-1"
+      ref={containerRef}
+    >
+      <ItemArvore
+        aoAlternarExpansao={aoAlternarExpansao}
+        aoEditarNo={aoEditarNo}
+        idsAncestres={idsAncestres}
+        idsCorrespondentes={idsCorrespondentes}
+        no={raiz}
+        nosExpandidos={nosExpandidos}
+        resultadoAtualId={resultadoAtualId}
+        termoBusca={termoBusca}
+      />
     </div>
   );
 }

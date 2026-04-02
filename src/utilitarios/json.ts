@@ -68,6 +68,10 @@ export function resumirValor(valor: ValorJson): string {
   return String(valor);
 }
 
+function criarRotuloItemArray(chavePai: string, indice: number) {
+  return `${chavePai}[${indice}]`;
+}
+
 export function construirArvoreJson(
   valor: ValorJson,
   chave = "raiz",
@@ -90,7 +94,7 @@ export function construirArvoreJson(
         ? (valor as ValorJson[]).map((proximoValor, indice) =>
             construirArvoreJson(
               proximoValor,
-              String(indice),
+              criarRotuloItemArray(chave, indice),
               [...caminho, indice],
               profundidade + 1,
             ),
