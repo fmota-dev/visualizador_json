@@ -12,7 +12,11 @@ import {
 } from "@xyflow/react";
 import { memo, useEffect, useMemo, type RefObject } from "react";
 import type { DadosNoGrafo, NoJson } from "../tipos/json";
-import { construirElementosDoGrafo } from "../utilitarios/grafo";
+import {
+  ALTURA_CARTAO_GRAFO,
+  LARGURA_CARTAO_GRAFO,
+  construirElementosDoGrafo,
+} from "../utilitarios/grafo";
 
 interface PropsVisualizadorGrafo {
   raiz: NoJson | null;
@@ -43,7 +47,7 @@ const CartaoNoJson = memo(function CartaoNoJson({
 }: NodeProps<Node<DadosNoGrafoInterativo>>) {
   return (
     <div
-      className={`w-[240px] rounded-[24px] border p-4 shadow-xl transition ${
+      className={`w-[272px] rounded-[24px] border p-4 shadow-xl transition ${
         data.resultadoAtual
           ? "border-[color:var(--cor-destaque)] bg-[color:var(--cor-destaque-suave)]"
           : data.correspondeBusca
@@ -126,10 +130,14 @@ function ObservadorDeFoco({
       if (resultadoAtualId) {
         const no = getNode(resultadoAtualId);
         if (no) {
-          setCenter(no.position.x + 120, no.position.y + 60, {
+          setCenter(
+            no.position.x + LARGURA_CARTAO_GRAFO / 2,
+            no.position.y + ALTURA_CARTAO_GRAFO / 2,
+            {
             duration: 350,
             zoom: 1.02,
-          });
+            },
+          );
           return;
         }
       }

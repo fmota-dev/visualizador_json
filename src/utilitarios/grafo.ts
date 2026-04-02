@@ -11,8 +11,11 @@ interface PosicaoInterna {
   y: number;
 }
 
-const ESPACAMENTO_HORIZONTAL = 320;
-const ESPACAMENTO_VERTICAL = 120;
+export const LARGURA_CARTAO_GRAFO = 272;
+export const ALTURA_CARTAO_GRAFO = 144;
+
+const ESPACAMENTO_HORIZONTAL = 392;
+const ESPACAMENTO_VERTICAL = 168;
 
 export function construirElementosDoGrafo(
   raiz: NoJson,
