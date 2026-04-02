@@ -4,13 +4,11 @@ import {
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent as EventoTecladoReact,
   type CSSProperties,
 } from "react";
 import { EditorJson } from "./componentes/EditorJson";
 import { ModalNo } from "./componentes/ModalNo";
-import { VisualizadorArvore } from "./componentes/VisualizadorArvore";
-import { VisualizadorGrafo } from "./componentes/VisualizadorGrafo";
+import { PainelVisualizador } from "./componentes/PainelVisualizador";
 import { useBuscaJson } from "./hooks/useBuscaJson";
 import { useJsonParseado } from "./hooks/useJsonParseado";
 import {
@@ -21,12 +19,15 @@ import {
 import { useTema } from "./hooks/useTema";
 import type {
   FiltroBusca,
+  ModoPainelVisualizador,
   ModoVisualizacao,
   NoEditavel,
   NoJson,
+  SubmodoComparacao,
   TemaAplicacao,
   ValorJson,
 } from "./tipos/json";
+import { compararJsonEstruturalmente } from "./utilitarios/comparacao";
 import {
   adicionarItemEmArray,
   adicionarPropriedadeEmObjeto,
@@ -36,7 +37,6 @@ import {
   determinarTipoNo,
   duplicarItemPorCaminho,
   encontrarNoPorId,
-  formatarCaminho,
   obterValorPorCaminho,
   removerValorPorCaminho,
   renomearChavePorCaminho,
@@ -60,14 +60,6 @@ const EXEMPLO_INICIAL = `{
     }
   }
 }`;
-
-const opcoesFiltroBusca: Array<{ valor: FiltroBusca; rotulo: string }> = [
-  { valor: "todos", rotulo: "Tudo" },
-  { valor: "chave", rotulo: "Chave" },
-  { valor: "valor", rotulo: "Valor" },
-  { valor: "caminho", rotulo: "Caminho" },
-  { valor: "tipo", rotulo: "Tipo" },
-];
 
 function criarNoEditavel(no: NoJson, jsonParseado: ValorJson | null): NoEditavel {
   const caminhoPai = no.caminho.slice(0, -1);
@@ -93,70 +85,21 @@ function criarNoEditavel(no: NoJson, jsonParseado: ValorJson | null): NoEditavel
   };
 }
 
-function classeBotaoCabecalho(ativo = false) {
-  return [
-    "inline-flex items-center justify-center rounded-full border px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-45",
-    ativo
-      ? "border-[color:var(--cor-destaque)] bg-[color:var(--cor-destaque)] text-white"
-      : "border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] text-[color:var(--cor-texto)] hover:border-[color:var(--cor-borda-forte)] hover:bg-[color:var(--cor-destaque-suave)]",
-  ].join(" ");
-}
-
-function IconeSol() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.8" />
-      <path
-        d="M12 2.5v2.2M12 19.3v2.2M4.7 4.7l1.6 1.6M17.7 17.7l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.7 19.3l1.6-1.6M17.7 6.3l1.6-1.6"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="1.8"
-      />
-    </svg>
-  );
-}
-
-function IconeLua() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="h-4 w-4"
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <path
-        d="M20 14.2A8 8 0 0 1 9.8 4 8.6 8.6 0 1 0 20 14.2Z"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.8"
-      />
-    </svg>
-  );
-}
-
-function classeBotaoTema(ativo = false) {
-  return [
-    "inline-flex h-10 w-10 items-center justify-center rounded-full border transition",
-    ativo
-      ? "border-[color:var(--cor-destaque)] bg-[color:var(--cor-destaque)] text-white"
-      : "border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-painel)] text-[color:var(--cor-texto)] hover:border-[color:var(--cor-borda-forte)] hover:bg-[color:var(--cor-destaque-suave)]",
-  ].join(" ");
-}
-
 export default function App() {
   const [workspaceInicial] = useState(() => carregarWorkspacePersistido());
 
   const [jsonBruto, setJsonBruto] = useState(
     workspaceInicial.jsonBruto || EXEMPLO_INICIAL,
   );
+  const [jsonReferenciaBruto, setJsonReferenciaBruto] = useState(
+    workspaceInicial.jsonReferenciaBruto || EXEMPLO_INICIAL,
+  );
   const [modoVisualizacao, setModoVisualizacao] =
     useState<ModoVisualizacao>(workspaceInicial.modoVisualizacao);
+  const [modoPainelVisualizador, setModoPainelVisualizador] =
+    useState<ModoPainelVisualizador>(workspaceInicial.modoPainelVisualizador);
+  const [submodoComparacao, setSubmodoComparacao] =
+    useState<SubmodoComparacao>(workspaceInicial.submodoComparacao);
   const [temaAplicacao, setTemaAplicacao] = useState<TemaAplicacao>(
     workspaceInicial.temaAplicacao,
   );
@@ -178,31 +121,52 @@ export default function App() {
   const [larguraPainelEditor, setLarguraPainelEditor] = useState(
     workspaceInicial.larguraPainelEditor,
   );
+  const [alturaPainelReferencia, setAlturaPainelReferencia] = useState(42);
   const [redimensionandoEditor, setRedimensionandoEditor] = useState(false);
+  const [redimensionandoReferencia, setRedimensionandoReferencia] = useState(false);
   const [feedbackCopia, setFeedbackCopia] = useState("");
+  const [editorReferenciaRecolhido, setEditorReferenciaRecolhido] = useState(false);
+  const [abaEditorComparacao, setAbaEditorComparacao] = useState<"atual" | "referencia">(
+    "atual",
+  );
 
   const areaPrincipalRef = useRef<HTMLElement>(null);
+  const painelEditoresComparacaoRef = useRef<HTMLDivElement>(null);
   const graficoRef = useRef<HTMLDivElement>(null);
+  const graficoComparacaoAtualRef = useRef<HTMLDivElement>(null);
+  const graficoComparacaoReferenciaRef = useRef<HTMLDivElement>(null);
   const menuVisualizadorRef = useRef<HTMLDetailsElement>(null);
   const larguraPainelEditorRef = useRef(larguraPainelEditor);
+  const alturaPainelReferenciaRef = useRef(alturaPainelReferencia);
   const quadroAnimacaoRedimensionamentoRef = useRef<number | null>(null);
+  const quadroAnimacaoReferenciaRef = useRef<number | null>(null);
 
   const { jsonParseado, arvoreJson, erroJson } = useJsonParseado(jsonBruto);
+  const {
+    jsonParseado: jsonReferenciaParseado,
+    arvoreJson: arvoreReferenciaJson,
+    erroJson: erroJsonReferencia,
+  } = useJsonParseado(jsonReferenciaBruto);
   const { resultadosBusca, idsCorrespondentes, idsAncestres } = useBuscaJson(
     arvoreJson,
     termoBusca,
     filtroBusca,
   );
+  const { mapaAtual: mapaDiferencasAtual, mapaReferencia: mapaDiferencasReferencia } =
+    useMemo(
+      () => compararJsonEstruturalmente(jsonParseado, jsonReferenciaParseado),
+      [jsonParseado, jsonReferenciaParseado],
+    );
 
   useTema(temaAplicacao);
 
   usePersistenciaWorkspace({
     jsonBruto,
-    jsonReferenciaBruto: workspacePersistidoPadrao.jsonReferenciaBruto,
+    jsonReferenciaBruto,
     temaAplicacao,
     modoVisualizacao,
-    modoPainelVisualizador: workspacePersistidoPadrao.modoPainelVisualizador,
-    submodoComparacao: workspacePersistidoPadrao.submodoComparacao,
+    modoPainelVisualizador,
+    submodoComparacao,
     termoBusca,
     filtroBusca,
     nosExpandidos: Array.from(nosExpandidos),
@@ -215,6 +179,10 @@ export default function App() {
   useEffect(() => {
     larguraPainelEditorRef.current = larguraPainelEditor;
   }, [larguraPainelEditor]);
+
+  useEffect(() => {
+    alturaPainelReferenciaRef.current = alturaPainelReferencia;
+  }, [alturaPainelReferencia]);
 
   useEffect(() => {
     if (!visualizadorTelaCheia) {
@@ -300,6 +268,84 @@ export default function App() {
     };
   }, [editorRecolhido, redimensionandoEditor, visualizadorTelaCheia]);
 
+  useEffect(() => {
+    if (
+      !redimensionandoReferencia ||
+      editorRecolhido ||
+      visualizadorTelaCheia ||
+      modoPainelVisualizador !== "comparar" ||
+      editorReferenciaRecolhido
+    ) {
+      return;
+    }
+
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "row-resize";
+
+    function aplicarAlturaNoLayout() {
+      if (!painelEditoresComparacaoRef.current) {
+        return;
+      }
+
+      painelEditoresComparacaoRef.current.style.setProperty(
+        "--altura-editor-referencia",
+        `${alturaPainelReferenciaRef.current}%`,
+      );
+    }
+
+    function aoMoverMouse(evento: MouseEvent) {
+      if (!painelEditoresComparacaoRef.current) {
+        return;
+      }
+
+      const limites = painelEditoresComparacaoRef.current.getBoundingClientRect();
+      const porcentagem = ((limites.bottom - evento.clientY) / limites.height) * 100;
+      alturaPainelReferenciaRef.current = Math.min(68, Math.max(24, porcentagem));
+
+      if (quadroAnimacaoReferenciaRef.current !== null) {
+        return;
+      }
+
+      quadroAnimacaoReferenciaRef.current = window.requestAnimationFrame(() => {
+        quadroAnimacaoReferenciaRef.current = null;
+        aplicarAlturaNoLayout();
+      });
+    }
+
+    function aoSoltarMouse() {
+      if (quadroAnimacaoReferenciaRef.current !== null) {
+        window.cancelAnimationFrame(quadroAnimacaoReferenciaRef.current);
+        quadroAnimacaoReferenciaRef.current = null;
+      }
+
+      aplicarAlturaNoLayout();
+      setAlturaPainelReferencia(alturaPainelReferenciaRef.current);
+      setRedimensionandoReferencia(false);
+    }
+
+    window.addEventListener("mousemove", aoMoverMouse);
+    window.addEventListener("mouseup", aoSoltarMouse);
+
+    return () => {
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+
+      if (quadroAnimacaoReferenciaRef.current !== null) {
+        window.cancelAnimationFrame(quadroAnimacaoReferenciaRef.current);
+        quadroAnimacaoReferenciaRef.current = null;
+      }
+
+      window.removeEventListener("mousemove", aoMoverMouse);
+      window.removeEventListener("mouseup", aoSoltarMouse);
+    };
+  }, [
+    editorRecolhido,
+    editorReferenciaRecolhido,
+    modoPainelVisualizador,
+    redimensionandoReferencia,
+    visualizadorTelaCheia,
+  ]);
+
   const indiceResultadoNormalizado =
     resultadosBusca.length === 0
       ? 0
@@ -361,8 +407,12 @@ export default function App() {
   }, [arvoreJson, idsAncestres, nosExpandidos]);
 
   const visualizacaoDisponivel = Boolean(arvoreJson);
+  const visualizacaoReferenciaDisponivel = Boolean(arvoreReferenciaJson);
   const exportacaoDisponivel = modoVisualizacao === "grafo" && visualizacaoDisponivel;
   const buscaAtiva = termoBusca.trim().length > 0;
+  const modoComparacaoAtivo = modoPainelVisualizador === "comparar";
+  const buscaDisponivel =
+    !modoComparacaoAtivo || submodoComparacao === "arvore" || submodoComparacao === "grafo";
 
   const aoAlternarExpansao = (id: string) => {
     setNosExpandidos((anterior) => {
@@ -483,6 +533,14 @@ export default function App() {
     leitor.readAsText(arquivo, "utf-8");
   };
 
+  const aoCarregarArquivoReferencia = (arquivo: File) => {
+    const leitor = new FileReader();
+    leitor.onload = () => {
+      setJsonReferenciaBruto(String(leitor.result ?? ""));
+    };
+    leitor.readAsText(arquivo, "utf-8");
+  };
+
   const aoExportarPng = async () => {
     if (!graficoRef.current) {
       return;
@@ -559,303 +617,73 @@ export default function App() {
   };
 
   const painelVisualizador = (
-    <section
-      className={`painel-vidro painel-visualizador flex min-h-0 flex-col overflow-hidden rounded-[32px] border border-[color:var(--cor-borda)] ${
-        visualizadorTelaCheia
-          ? "h-full"
-          : "h-[calc(100dvh-1.5rem)] min-h-[520px] sm:h-[calc(100dvh-2rem)]"
-      }`}
-      onKeyDown={(evento: EventoTecladoReact<HTMLElement>) => {
-        if (evento.key === "Escape" && visualizadorTelaCheia) {
-          setVisualizadorTelaCheia(false);
-        }
+    <PainelVisualizador
+      aoAlterarFiltroBusca={(filtro) => {
+        setFiltroBusca(filtro);
+        setIndiceResultadoAtual(0);
+        setNoAtivoId(null);
       }}
-      tabIndex={-1}
-    >
-      <div className="flex flex-col gap-3 border-b border-[color:var(--cor-borda)] px-4 py-4 sm:px-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-[color:var(--cor-texto-suave)]">
-              Visualizador
-            </p>
-            <h2 className="mt-1 text-xl font-semibold text-[color:var(--cor-texto)]">
-              {modoVisualizacao === "arvore" ? "Modo Arvore" : "Modo Grafo"}
-            </h2>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-3 rounded-[22px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-3 py-2">
-              <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-[color:var(--cor-texto-suave)]">
-                Tema
-              </span>
-              <div className="flex rounded-full border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-painel)] p-1">
-                <button
-                  aria-label="Ativar tema claro"
-                  className={classeBotaoTema(temaAplicacao === "claro")}
-                  onClick={() => {
-                    if (temaAplicacao !== "claro") {
-                      setTemaAplicacao("claro");
-                    }
-                  }}
-                  title="Tema claro"
-                  type="button"
-                >
-                  <IconeSol />
-                </button>
-                <button
-                  aria-label="Ativar tema escuro"
-                  className={classeBotaoTema(temaAplicacao === "escuro")}
-                  onClick={() => {
-                    if (temaAplicacao !== "escuro") {
-                      setTemaAplicacao("escuro");
-                    }
-                  }}
-                  title="Tema escuro"
-                  type="button"
-                >
-                  <IconeLua />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex rounded-full border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] p-1">
-              <button
-                className={classeBotaoCabecalho(modoVisualizacao === "arvore")}
-                onClick={() => setModoVisualizacao("arvore")}
-                type="button"
-              >
-                Arvore
-              </button>
-              <button
-                className={classeBotaoCabecalho(modoVisualizacao === "grafo")}
-                onClick={() => setModoVisualizacao("grafo")}
-                type="button"
-              >
-                Grafo
-              </button>
-            </div>
-
-            <details className="menu-detalhes relative" ref={menuVisualizadorRef}>
-              <summary className={classeBotaoCabecalho()}>
-                Mais
-              </summary>
-              <div className="menu-flutuante absolute right-0 top-[calc(100%+10px)] z-20 flex min-w-56 flex-col gap-1 rounded-[22px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-painel)] p-2 shadow-2xl">
-                <button
-                  className="rounded-2xl px-4 py-3 text-left text-sm text-[color:var(--cor-texto)] transition hover:bg-[color:var(--cor-destaque-suave)] disabled:cursor-not-allowed disabled:opacity-45"
-                  disabled={!visualizacaoDisponivel}
-                  onClick={() => {
-                    aoExpandirTudo();
-                    menuVisualizadorRef.current?.removeAttribute("open");
-                  }}
-                  type="button"
-                >
-                  Expandir Tudo
-                </button>
-                <button
-                  className="rounded-2xl px-4 py-3 text-left text-sm text-[color:var(--cor-texto)] transition hover:bg-[color:var(--cor-destaque-suave)] disabled:cursor-not-allowed disabled:opacity-45"
-                  disabled={!visualizacaoDisponivel}
-                  onClick={() => {
-                    aoRecolherTudo();
-                    menuVisualizadorRef.current?.removeAttribute("open");
-                  }}
-                  type="button"
-                >
-                  Recolher Tudo
-                </button>
-                {modoVisualizacao === "grafo" ? (
-                  <button
-                    className="rounded-2xl px-4 py-3 text-left text-sm text-[color:var(--cor-texto)] transition hover:bg-[color:var(--cor-destaque-suave)] disabled:cursor-not-allowed disabled:opacity-45"
-                    disabled={!exportacaoDisponivel}
-                    onClick={() => {
-                      void aoExportarPng();
-                      menuVisualizadorRef.current?.removeAttribute("open");
-                    }}
-                    type="button"
-                  >
-                    Exportar PNG
-                  </button>
-                ) : null}
-                <button
-                  className="rounded-2xl px-4 py-3 text-left text-sm text-[color:var(--cor-texto)] transition hover:bg-[color:var(--cor-destaque-suave)]"
-                  onClick={() => {
-                    setVisualizadorTelaCheia((valorAtual) => !valorAtual);
-                    menuVisualizadorRef.current?.removeAttribute("open");
-                  }}
-                  type="button"
-                >
-                  {visualizadorTelaCheia ? "Sair da tela cheia" : "Tela cheia"}
-                </button>
-                <button
-                  className="rounded-2xl px-4 py-3 text-left text-sm text-[color:var(--cor-texto)] transition hover:bg-[color:var(--cor-destaque-suave)]"
-                  onClick={() => {
-                    setEditorRecolhido((valorAtual) => !valorAtual);
-                    menuVisualizadorRef.current?.removeAttribute("open");
-                  }}
-                  type="button"
-                >
-                  {editorRecolhido ? "Abrir editor" : "Recolher editor"}
-                </button>
-              </div>
-            </details>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
-          <div className="flex flex-1 flex-col gap-2 sm:flex-row">
-            <input
-              className="h-11 flex-1 rounded-2xl border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-4 text-[color:var(--cor-texto)] outline-none transition placeholder:text-[color:var(--cor-texto-suave)] focus:border-[color:var(--cor-destaque)]"
-              onChange={(evento) => {
-                setTermoBusca(evento.target.value);
-                setIndiceResultadoAtual(0);
-                setNoAtivoId(null);
-              }}
-              placeholder="Buscar por chave, valor, caminho ou tipo..."
-              type="search"
-              value={termoBusca}
-            />
-
-            <label className="flex items-center gap-2 rounded-2xl border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-3 text-sm text-[color:var(--cor-texto-suave)]">
-              <span className="whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.18em]">
-                Escopo
-              </span>
-              <select
-                className="h-11 bg-transparent pr-2 text-sm font-medium text-[color:var(--cor-texto)] outline-none"
-                onChange={(evento) => {
-                  setFiltroBusca(evento.target.value as FiltroBusca);
-                  setIndiceResultadoAtual(0);
-                  setNoAtivoId(null);
-                }}
-                value={filtroBusca}
-              >
-                {opcoesFiltroBusca.map((opcao) => (
-                  <option className="bg-[color:var(--cor-fundo-painel)]" key={opcao.valor} value={opcao.valor}>
-                    {opcao.rotulo}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          {buscaAtiva ? (
-            <div className="flex gap-2">
-              <button
-                className={classeBotaoCabecalho()}
-                disabled={resultadosBusca.length === 0}
-                onClick={aoIrParaResultadoAnterior}
-                type="button"
-              >
-                Anterior
-              </button>
-              <button
-                className={classeBotaoCabecalho()}
-                disabled={resultadosBusca.length === 0}
-                onClick={aoIrParaProximoResultado}
-                type="button"
-              >
-                Proximo
-              </button>
-            </div>
-          ) : null}
-        </div>
-
-        {noEmFoco ? (
-          <div className="flex flex-col gap-3 rounded-[24px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-4 py-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[color:var(--cor-texto-suave)]">
-                  No em foco
-                </p>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[color:var(--cor-texto)]">
-                  {itensBreadcrumb.map((item, indice) => (
-                    <div className="flex items-center gap-2" key={item.id}>
-                      {indice > 0 ? (
-                        <span className="text-[color:var(--cor-texto-suave)]">/</span>
-                      ) : null}
-                      <button
-                        className="rounded-full border border-[color:var(--cor-borda)] px-3 py-1 transition hover:border-[color:var(--cor-borda-forte)] hover:bg-[color:var(--cor-destaque-suave)]"
-                        onClick={() => aoSelecionarCaminhoBreadcrumb(item.caminho)}
-                        type="button"
-                      >
-                        {item.rotulo}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-2 text-xs text-[color:var(--cor-texto-suave)]">
-                  Caminho completo: {formatarCaminho(noEmFoco.caminho)}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  className={classeBotaoCabecalho()}
-                  onClick={() =>
-                    void aoCopiarTexto(
-                      formatarCaminho(noEmFoco.caminho),
-                      "Caminho copiado.",
-                    )
-                  }
-                  type="button"
-                >
-                  Copiar caminho
-                </button>
-                <button
-                  className={classeBotaoCabecalho()}
-                  onClick={() =>
-                    void aoCopiarTexto(
-                      serializarJson(noEmFoco.valor),
-                      "JSON copiado.",
-                    )
-                  }
-                  type="button"
-                >
-                  Copiar JSON
-                </button>
-              </div>
-            </div>
-
-            {feedbackCopia ? (
-              <p className="text-xs font-medium text-[color:var(--cor-acao-secundaria)]">
-                {feedbackCopia}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="min-h-0 flex-1 p-3 sm:p-4">
-        {modoVisualizacao === "arvore" ? (
-          <VisualizadorArvore
-            aoAlternarExpansao={aoAlternarExpansao}
-            aoSelecionarNo={aoSelecionarNo}
-            aoEditarNo={aoAbrirEdicaoNo}
-            idsAncestres={idsAncestres}
-            idsCorrespondentes={idsCorrespondentes}
-            noAtivoId={noAtivoId ?? resultadoAtual?.id}
-            nosExpandidos={nosExpandidosEfetivos}
-            raiz={arvoreJson}
-            resultadoAtualId={resultadoAtual?.id}
-            termoBusca={termoBusca}
-          />
-        ) : (
-          <VisualizadorGrafo
-            aoAlternarExpansao={aoAlternarExpansao}
-            aoSelecionarNo={aoSelecionarNo}
-            aoEditarNo={aoAbrirEdicaoNo}
-            containerRef={graficoRef}
-            idsCorrespondentes={idsCorrespondentes}
-            noAtivoId={noAtivoId ?? resultadoAtual?.id}
-            nosExpandidos={nosExpandidosEfetivos}
-            raiz={arvoreJson}
-            resultadoAtualId={resultadoAtual?.id}
-          />
-        )}
-      </div>
-    </section>
+      aoAlterarModoPainelVisualizador={setModoPainelVisualizador}
+      aoAlterarModoVisualizacao={setModoVisualizacao}
+      aoAlterarSubmodoComparacao={setSubmodoComparacao}
+      aoAlterarTema={setTemaAplicacao}
+      aoAlterarTermoBusca={(termo) => {
+        setTermoBusca(termo);
+        setIndiceResultadoAtual(0);
+        setNoAtivoId(null);
+      }}
+      aoAlternarEditor={() => setEditorRecolhido((valorAtual) => !valorAtual)}
+      aoAlternarExpansao={aoAlternarExpansao}
+      aoAlternarTelaCheia={() => setVisualizadorTelaCheia((valorAtual) => !valorAtual)}
+      aoCopiarTexto={aoCopiarTexto}
+      aoEditarNo={aoAbrirEdicaoNo}
+      aoExpandirTudo={aoExpandirTudo}
+      aoExportarPng={aoExportarPng}
+      aoIrParaProximoResultado={aoIrParaProximoResultado}
+      aoIrParaResultadoAnterior={aoIrParaResultadoAnterior}
+      aoRecolherTudo={aoRecolherTudo}
+      aoSelecionarCaminhoBreadcrumb={aoSelecionarCaminhoBreadcrumb}
+      aoSelecionarNo={aoSelecionarNo}
+      arvoreJson={arvoreJson}
+      arvoreReferenciaJson={arvoreReferenciaJson}
+      buscaAtiva={buscaAtiva}
+      buscaDisponivel={buscaDisponivel}
+      editorRecolhido={editorRecolhido}
+      exportacaoDisponivel={exportacaoDisponivel}
+      feedbackCopia={feedbackCopia}
+      filtroBusca={filtroBusca}
+      graficoComparacaoAtualRef={graficoComparacaoAtualRef}
+      graficoComparacaoReferenciaRef={graficoComparacaoReferenciaRef}
+      graficoRef={graficoRef}
+      idsAncestres={idsAncestres}
+      idsCorrespondentes={idsCorrespondentes}
+      itensBreadcrumb={itensBreadcrumb}
+      jsonBruto={jsonBruto}
+      jsonReferenciaBruto={jsonReferenciaBruto}
+      mapaDiferencasAtual={mapaDiferencasAtual}
+      mapaDiferencasReferencia={mapaDiferencasReferencia}
+      menuVisualizadorRef={menuVisualizadorRef}
+      modoPainelVisualizador={modoPainelVisualizador}
+      modoVisualizacao={modoVisualizacao}
+      noAtivoId={noAtivoId}
+      noEmFoco={noEmFoco}
+      nosExpandidos={nosExpandidosEfetivos}
+      resultadoAtualId={resultadoAtual?.id}
+      resultadosBuscaQuantidade={resultadosBusca.length}
+      submodoComparacao={submodoComparacao}
+      temaAplicacao={temaAplicacao}
+      termoBusca={termoBusca}
+      visualizacaoDisponivel={visualizacaoDisponivel}
+      visualizacaoReferenciaDisponivel={visualizacaoReferenciaDisponivel}
+      visualizadorTelaCheia={visualizadorTelaCheia}
+    />
   );
 
   const estiloPainelEditor = {
     "--largura-painel-editor": `clamp(320px, ${larguraPainelEditor}%, 680px)`,
+  } as CSSProperties;
+  const estiloPainelEditoresComparacao = {
+    "--altura-editor-referencia": `${alturaPainelReferencia}%`,
   } as CSSProperties;
 
   return (
@@ -872,15 +700,126 @@ export default function App() {
                 editorRecolhido ? "hidden" : "block"
               }`}
             >
-              <EditorJson
-                aoAlterarJsonBruto={setJsonBruto}
-                aoAlternarEditor={() => setEditorRecolhido((valorAtual) => !valorAtual)}
-                aoCarregarArquivo={aoCarregarArquivo}
-                erroJson={erroJson}
-                jsonBruto={jsonBruto}
-                recolhido={editorRecolhido}
-                temaAplicacao={temaAplicacao}
-              />
+              {modoPainelVisualizador !== "comparar" ? (
+                <EditorJson
+                  aoAlterarJsonBruto={setJsonBruto}
+                  aoAlternarEditor={() => setEditorRecolhido((valorAtual) => !valorAtual)}
+                  aoCarregarArquivo={aoCarregarArquivo}
+                  erroJson={erroJson}
+                  jsonBruto={jsonBruto}
+                  recolhido={editorRecolhido}
+                  temaAplicacao={temaAplicacao}
+                />
+              ) : (
+                <>
+                  <div className="flex gap-2 xl:hidden">
+                    <button
+                      className={`flex-1 ${abaEditorComparacao === "atual" ? "bg-[color:var(--cor-destaque)] text-white" : "bg-[color:var(--cor-fundo-elevado)] text-[color:var(--cor-texto)]"} rounded-full border border-[color:var(--cor-borda)] px-4 py-2 text-sm font-medium transition`}
+                      onClick={() => setAbaEditorComparacao("atual")}
+                      type="button"
+                    >
+                      Atual
+                    </button>
+                    <button
+                      className={`flex-1 ${abaEditorComparacao === "referencia" ? "bg-[color:var(--cor-destaque)] text-white" : "bg-[color:var(--cor-fundo-elevado)] text-[color:var(--cor-texto)]"} rounded-full border border-[color:var(--cor-borda)] px-4 py-2 text-sm font-medium transition`}
+                      onClick={() => setAbaEditorComparacao("referencia")}
+                      type="button"
+                    >
+                      Referencia
+                    </button>
+                  </div>
+
+                  <div
+                    className="hidden h-[calc(100dvh-1.5rem)] min-h-[520px] flex-col gap-3 sm:h-[calc(100dvh-2rem)] xl:flex"
+                    ref={painelEditoresComparacaoRef}
+                    style={estiloPainelEditoresComparacao}
+                  >
+                    <div
+                      className={`min-h-0 ${editorReferenciaRecolhido ? "flex-1" : "h-[calc(100%-var(--altura-editor-referencia)-0.75rem)]"}`}
+                    >
+                      <EditorJson
+                        aoAlterarJsonBruto={setJsonBruto}
+                        aoAlternarEditor={() => setEditorRecolhido((valorAtual) => !valorAtual)}
+                        aoCarregarArquivo={aoCarregarArquivo}
+                        classeContainer="h-full"
+                        erroJson={erroJson}
+                        jsonBruto={jsonBruto}
+                        legenda="Atual"
+                        recolhido={false}
+                        temaAplicacao={temaAplicacao}
+                        titulo="JSON em edicao"
+                        usarAlturaCompleta={false}
+                      />
+                    </div>
+
+                    {!editorReferenciaRecolhido ? (
+                      <div
+                        className="flex h-3 shrink-0 cursor-row-resize items-center justify-center"
+                        onMouseDown={() => setRedimensionandoReferencia(true)}
+                        role="separator"
+                      >
+                        <div className="h-1 w-28 rounded-full bg-[color:var(--cor-borda-forte)]" />
+                      </div>
+                    ) : null}
+
+                    {editorReferenciaRecolhido ? (
+                      <button
+                        className="rounded-[24px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-4 py-3 text-sm font-semibold text-[color:var(--cor-texto)] transition hover:border-[color:var(--cor-borda-forte)] hover:bg-[color:var(--cor-destaque-suave)]"
+                        onClick={() => setEditorReferenciaRecolhido(false)}
+                        type="button"
+                      >
+                        Mostrar referencia
+                      </button>
+                    ) : (
+                      <div className="h-[var(--altura-editor-referencia)] min-h-0">
+                        <EditorJson
+                          aoAlterarJsonBruto={setJsonReferenciaBruto}
+                          aoAlternarEditor={() => setEditorReferenciaRecolhido(true)}
+                          aoCarregarArquivo={aoCarregarArquivoReferencia}
+                          classeContainer="h-full"
+                          erroJson={erroJsonReferencia}
+                          jsonBruto={jsonReferenciaBruto}
+                          legenda="Referencia"
+                          recolhido={false}
+                          rotuloRecolher="Ocultar referencia"
+                          temaAplicacao={temaAplicacao}
+                          titulo="JSON base"
+                          usarAlturaCompleta={false}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="xl:hidden">
+                    {abaEditorComparacao === "atual" ? (
+                      <EditorJson
+                        aoAlterarJsonBruto={setJsonBruto}
+                        aoAlternarEditor={() => setEditorRecolhido((valorAtual) => !valorAtual)}
+                        aoCarregarArquivo={aoCarregarArquivo}
+                        erroJson={erroJson}
+                        jsonBruto={jsonBruto}
+                        legenda="Atual"
+                        recolhido={false}
+                        temaAplicacao={temaAplicacao}
+                        titulo="JSON em edicao"
+                      />
+                    ) : (
+                      <EditorJson
+                        aoAlterarJsonBruto={setJsonReferenciaBruto}
+                        aoAlternarEditor={() => setAbaEditorComparacao("atual")}
+                        aoCarregarArquivo={aoCarregarArquivoReferencia}
+                        erroJson={erroJsonReferencia}
+                        jsonBruto={jsonReferenciaBruto}
+                        legenda="Referencia"
+                        recolhido={false}
+                        rotuloRecolher="Voltar"
+                        temaAplicacao={temaAplicacao}
+                        titulo="JSON base"
+                      />
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
             {!editorRecolhido ? (

@@ -7,9 +7,16 @@ export interface PropsEditorJson {
   temaAplicacao: "claro" | "escuro";
   erroJson: ErroJson | null;
   recolhido: boolean;
+  legenda?: string;
+  titulo?: string;
+  classeContainer?: string;
+  usarAlturaCompleta?: boolean;
+  mostrarBotaoRecolher?: boolean;
+  rotuloUpload?: string;
+  rotuloRecolher?: string;
   aoAlterarJsonBruto: (valor: string) => void;
   aoCarregarArquivo: (arquivo: File) => void;
-  aoAlternarEditor: () => void;
+  aoAlternarEditor?: () => void;
 }
 
 function IconeUpload() {
@@ -59,6 +66,13 @@ export function EditorJson({
   temaAplicacao,
   erroJson,
   recolhido,
+  legenda = "Editor",
+  titulo = "JSON",
+  classeContainer = "",
+  usarAlturaCompleta = true,
+  mostrarBotaoRecolher = true,
+  rotuloUpload = "Upload",
+  rotuloRecolher = "Recolher",
   aoAlterarJsonBruto,
   aoCarregarArquivo,
   aoAlternarEditor,
@@ -70,13 +84,19 @@ export function EditorJson({
   }
 
   return (
-    <section className="painel-vidro flex h-[calc(100dvh-1.5rem)] min-h-[520px] w-full flex-col gap-3 rounded-[30px] border border-[color:var(--cor-borda)] p-4 sm:h-[calc(100dvh-2rem)]">
+    <section
+      className={`painel-vidro flex w-full flex-col gap-3 rounded-[30px] border border-[color:var(--cor-borda)] p-4 ${
+        usarAlturaCompleta
+          ? "h-[calc(100dvh-1.5rem)] min-h-[520px] sm:h-[calc(100dvh-2rem)]"
+          : "h-full min-h-0"
+      } ${classeContainer}`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[color:var(--cor-texto-suave)]">
-            Editor
+            {legenda}
           </p>
-          <h2 className="mt-1 text-xl font-semibold text-[color:var(--cor-texto)]">JSON</h2>
+          <h2 className="mt-1 text-xl font-semibold text-[color:var(--cor-texto)]">{titulo}</h2>
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -99,19 +119,21 @@ export function EditorJson({
               type="button"
             >
               <IconeUpload />
-              <span>Upload</span>
+              <span>{rotuloUpload}</span>
             </button>
 
-            <button
-              aria-label="Recolher editor"
-              className={classeBotaoAcaoCompacta()}
-              onClick={aoAlternarEditor}
-              title="Recolher editor"
-              type="button"
-            >
-              <IconeRecolher />
-              <span>Recolher</span>
-            </button>
+            {mostrarBotaoRecolher && aoAlternarEditor ? (
+              <button
+                aria-label={rotuloRecolher}
+                className={classeBotaoAcaoCompacta()}
+                onClick={aoAlternarEditor}
+                title={rotuloRecolher}
+                type="button"
+              >
+                <IconeRecolher />
+                <span>{rotuloRecolher}</span>
+              </button>
+            ) : null}
           </div>
           <input
             accept=".json,application/json"

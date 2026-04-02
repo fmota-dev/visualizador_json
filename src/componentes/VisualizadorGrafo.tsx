@@ -2,6 +2,7 @@ import {
   Background,
   Controls,
   Handle,
+  MiniMap,
   Position,
   ReactFlow,
   ReactFlowProvider,
@@ -11,7 +12,7 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 import { memo, useEffect, useMemo, type RefObject } from "react";
-import type { DadosNoGrafo, NoJson } from "../tipos/json";
+import type { DadosNoGrafo, NoJson, StatusDiferencaNo } from "../tipos/json";
 import {
   ALTURA_CARTAO_GRAFO,
   LARGURA_CARTAO_GRAFO,
@@ -25,7 +26,10 @@ interface PropsVisualizadorGrafo {
   idsCorrespondentes: Set<string>;
   resultadoAtualId?: string;
   noAtivoId?: string;
+  mapaDiferencas?: Map<string, StatusDiferencaNo>;
   containerRef: RefObject<HTMLDivElement | null>;
+  miniMapaVisivel?: boolean;
+  permitirEdicao?: boolean;
   aoAlternarExpansao: (id: string) => void;
   aoSelecionarNo: (no: NoJson) => void;
   aoEditarNo: (no: NoJson) => void;
@@ -33,6 +37,8 @@ interface PropsVisualizadorGrafo {
 
 interface DadosNoGrafoInterativo extends DadosNoGrafo {
   ativo: boolean;
+  statusDiferenca: StatusDiferencaNo;
+  permitirEdicao: boolean;
   aoAlternarExpansao: (id: string) => void;
   aoEditar: () => void;
 }
@@ -46,20 +52,40 @@ const classesTipoNo: Record<DadosNoGrafo["tipo"], string> = {
   null: "bg-[color:rgba(107,114,128,0.16)] text-[color:#4b5563]",
 };
 
+function classeCartaoNo(data: DadosNoGrafoInterativo) {
+  if (data.resultadoAtual) {
+    return "border-[color:var(--cor-destaque)] bg-[color:var(--cor-destaque-suave)]";
+  }
+
+  if (data.ativo) {
+    return "border-[color:var(--cor-borda-forte)] bg-[color:var(--cor-fundo-elevado)] shadow-lg shadow-[color:rgba(0,0,0,0.08)]";
+  }
+
+  if (data.statusDiferenca === "adicionado") {
+    return "border-[color:rgba(15,118,110,0.34)] bg-[color:rgba(15,118,110,0.12)]";
+  }
+
+  if (data.statusDiferenca === "removido") {
+    return "border-[color:rgba(180,35,24,0.28)] bg-[color:rgba(180,35,24,0.08)]";
+  }
+
+  if (data.statusDiferenca === "alterado") {
+    return "border-[color:rgba(199,91,18,0.34)] bg-[color:rgba(199,91,18,0.1)]";
+  }
+
+  if (data.correspondeBusca) {
+    return "border-[color:var(--cor-destaque)] bg-[color:var(--cor-fundo-elevado)]";
+  }
+
+  return "border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-painel)]";
+}
+
 const CartaoNoJson = memo(function CartaoNoJson({
   data,
 }: NodeProps<Node<DadosNoGrafoInterativo>>) {
   return (
     <div
-      className={`w-[272px] rounded-[24px] border p-4 shadow-xl transition ${
-        data.resultadoAtual
-          ? "border-[color:var(--cor-destaque)] bg-[color:var(--cor-destaque-suave)]"
-          : data.ativo
-            ? "border-[color:var(--cor-borda-forte)] bg-[color:var(--cor-fundo-elevado)] shadow-lg shadow-[color:rgba(0,0,0,0.08)]"
-          : data.correspondeBusca
-            ? "border-[color:var(--cor-destaque)] bg-[color:var(--cor-fundo-elevado)]"
-            : "border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-painel)]"
-      }`}
+      className={`w-[272px] rounded-[24px] border p-4 shadow-xl transition ${classeCartaoNo(data)}`}
     >
       <Handle position={Position.Left} type="target" />
       <div className="flex items-start justify-between gap-3">
@@ -78,16 +104,18 @@ const CartaoNoJson = memo(function CartaoNoJson({
         </span>
       </div>
       <div className="mt-4 flex items-center justify-between gap-2">
-        <button
-          className="rounded-full border border-[color:var(--cor-borda)] px-3 py-1 text-xs font-semibold text-[color:var(--cor-texto)] transition hover:border-[color:var(--cor-borda-forte)] hover:bg-[color:var(--cor-destaque-suave)]"
-          onClick={(evento) => {
-            evento.stopPropagation();
-            data.aoEditar();
-          }}
-          type="button"
-        >
-          Editar
-        </button>
+        {data.permitirEdicao ? (
+          <button
+            className="rounded-full border border-[color:var(--cor-borda)] px-3 py-1 text-xs font-semibold text-[color:var(--cor-texto)] transition hover:border-[color:var(--cor-borda-forte)] hover:bg-[color:var(--cor-destaque-suave)]"
+            onClick={(evento) => {
+              evento.stopPropagation();
+              data.aoEditar();
+            }}
+            type="button"
+          >
+            Editar
+          </button>
+        ) : null}
         {data.expansivel ? (
           <button
             className="rounded-full bg-[color:var(--cor-destaque)] px-3 py-1 text-xs font-semibold text-white transition hover:opacity-90"
@@ -156,7 +184,10 @@ function GrafoInterno({
   idsCorrespondentes,
   resultadoAtualId,
   noAtivoId,
+  mapaDiferencas,
   containerRef,
+  miniMapaVisivel,
+  permitirEdicao = true,
   aoAlternarExpansao,
   aoSelecionarNo,
   aoEditarNo,
@@ -181,6 +212,8 @@ function GrafoInterno({
           data: {
             ...node.data,
             ativo: node.id === noAtivoId,
+            statusDiferenca: mapaDiferencas?.get(node.id) ?? "igual",
+            permitirEdicao,
             aoAlternarExpansao,
             aoEditar: () => {
               if (noOriginal) {
@@ -196,8 +229,10 @@ function GrafoInterno({
     aoAlternarExpansao,
     aoEditarNo,
     idsCorrespondentes,
+    mapaDiferencas,
     noAtivoId,
     nosExpandidos,
+    permitirEdicao,
     raiz,
     resultadoAtualId,
   ]);
@@ -240,6 +275,13 @@ function GrafoInterno({
         proOptions={{ hideAttribution: true }}
       >
         <Background color="var(--cor-borda)" gap={24} size={1} />
+        {miniMapaVisivel ? (
+          <MiniMap
+            className="!rounded-[18px] !border !border-[color:var(--cor-borda)] !bg-[color:var(--cor-fundo-painel)]"
+            pannable
+            zoomable
+          />
+        ) : null}
         <Controls position="top-right" showInteractive={false} />
         <ObservadorDeFoco
           noAtivoId={noAtivoId}

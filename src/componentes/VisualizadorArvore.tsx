@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import type { NoJson } from "../tipos/json";
+import type { NoJson, StatusDiferencaNo } from "../tipos/json";
 import { marcarTrechos } from "../utilitarios/busca";
 
 export interface PropsVisualizadorArvore {
@@ -9,11 +9,23 @@ export interface PropsVisualizadorArvore {
   idsAncestres: Set<string>;
   resultadoAtualId?: string;
   noAtivoId?: string;
+  mapaDiferencas?: Map<string, StatusDiferencaNo>;
   termoBusca: string;
+  permitirEdicao?: boolean;
   aoAlternarExpansao: (id: string) => void;
   aoSelecionarNo: (no: NoJson) => void;
   aoEditarNo: (no: NoJson) => void;
 }
+
+const classesDiferenca: Record<StatusDiferencaNo, string> = {
+  igual: "",
+  adicionado:
+    "border-[color:rgba(15,118,110,0.34)] bg-[color:rgba(15,118,110,0.12)]",
+  removido:
+    "border-[color:rgba(180,35,24,0.28)] bg-[color:rgba(180,35,24,0.08)]",
+  alterado:
+    "border-[color:rgba(199,91,18,0.34)] bg-[color:rgba(199,91,18,0.1)]",
+};
 
 function IconeTipoNo({ tipo }: { tipo: NoJson["tipo"] }) {
   const rotulos: Record<NoJson["tipo"], string> = {
@@ -60,7 +72,9 @@ interface PropsItemArvore {
   idsAncestres: Set<string>;
   resultadoAtualId?: string;
   noAtivoId?: string;
+  mapaDiferencas?: Map<string, StatusDiferencaNo>;
   termoBusca: string;
+  permitirEdicao: boolean;
   aoAlternarExpansao: (id: string) => void;
   aoSelecionarNo: (no: NoJson) => void;
   aoEditarNo: (no: NoJson) => void;
@@ -73,7 +87,9 @@ function ItemArvore({
   idsAncestres,
   resultadoAtualId,
   noAtivoId,
+  mapaDiferencas,
   termoBusca,
+  permitirEdicao,
   aoAlternarExpansao,
   aoSelecionarNo,
   aoEditarNo,
@@ -85,6 +101,7 @@ function ItemArvore({
     correspondeBusca || idsAncestres.has(no.id) || !termoBusca.trim();
   const ativo = noAtivoId === no.id;
   const emDestaque = resultadoAtualId === no.id || ativo;
+  const statusDiferenca = mapaDiferencas?.get(no.id) ?? "igual";
 
   return (
     <div className="space-y-2" data-no-id={no.id}>
@@ -92,7 +109,9 @@ function ItemArvore({
         className={`group flex items-center gap-3 rounded-[22px] border px-3 py-2 transition ${
           emDestaque
             ? "border-[color:var(--cor-destaque)] bg-[color:var(--cor-destaque-suave)] shadow-lg shadow-[color:var(--cor-destaque-suave)]"
-            : "border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)]"
+            : statusDiferenca !== "igual"
+              ? classesDiferenca[statusDiferenca]
+              : "border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)]"
         } ${relacionadoBusca ? "opacity-100" : "opacity-45"}`}
         style={{ marginLeft: `${no.profundidade * 16}px` }}
       >
@@ -138,13 +157,15 @@ function ItemArvore({
           ) : null}
         </button>
 
-        <button
-          className="rounded-full border border-[color:var(--cor-borda)] px-3 py-1 text-xs font-semibold text-[color:var(--cor-texto)] transition hover:border-[color:var(--cor-borda-forte)] hover:bg-[color:var(--cor-destaque-suave)]"
-          onClick={() => aoEditarNo(no)}
-          type="button"
-        >
-          Editar
-        </button>
+        {permitirEdicao ? (
+          <button
+            className="rounded-full border border-[color:var(--cor-borda)] px-3 py-1 text-xs font-semibold text-[color:var(--cor-texto)] transition hover:border-[color:var(--cor-borda-forte)] hover:bg-[color:var(--cor-destaque-suave)]"
+            onClick={() => aoEditarNo(no)}
+            type="button"
+          >
+            Editar
+          </button>
+        ) : null}
       </div>
 
       {expansivel && expandido ? (
@@ -160,6 +181,8 @@ function ItemArvore({
               no={filho}
               noAtivoId={noAtivoId}
               nosExpandidos={nosExpandidos}
+              mapaDiferencas={mapaDiferencas}
+              permitirEdicao={permitirEdicao}
               resultadoAtualId={resultadoAtualId}
               termoBusca={termoBusca}
             />
@@ -177,7 +200,9 @@ export function VisualizadorArvore({
   idsAncestres,
   resultadoAtualId,
   noAtivoId,
+  mapaDiferencas,
   termoBusca,
+  permitirEdicao = true,
   aoAlternarExpansao,
   aoSelecionarNo,
   aoEditarNo,
@@ -219,11 +244,13 @@ export function VisualizadorArvore({
         aoEditarNo={aoEditarNo}
         idsAncestres={idsAncestres}
         idsCorrespondentes={idsCorrespondentes}
+        mapaDiferencas={mapaDiferencas}
         no={raiz}
         noAtivoId={noAtivoId}
         nosExpandidos={nosExpandidos}
         resultadoAtualId={resultadoAtualId}
         termoBusca={termoBusca}
+        permitirEdicao={permitirEdicao}
       />
     </div>
   );
