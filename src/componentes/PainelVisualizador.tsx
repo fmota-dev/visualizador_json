@@ -51,6 +51,7 @@ export interface PropsPainelVisualizador {
   noAtivoId?: string | null;
   mapaDiferencasAtual: Map<string, StatusDiferencaNo>;
   mapaDiferencasReferencia: Map<string, StatusDiferencaNo>;
+  painelComparacaoAtivo: "referencia" | "atual";
   graficoRef: RefObject<HTMLDivElement | null>;
   graficoComparacaoAtualRef: RefObject<HTMLDivElement | null>;
   graficoComparacaoReferenciaRef: RefObject<HTMLDivElement | null>;
@@ -62,6 +63,7 @@ export interface PropsPainelVisualizador {
   aoExpandirTudo: () => void;
   aoRecolherTudo: () => void;
   aoExportarPng: () => Promise<void>;
+  aoExportarSvg: () => Promise<void>;
   aoAlternarTelaCheia: () => void;
   aoAlternarEditor: () => void;
   aoAlterarTermoBusca: (termo: string) => void;
@@ -71,6 +73,7 @@ export interface PropsPainelVisualizador {
   aoIrParaResultadoAnterior: () => void;
   aoIrParaProximoResultado: () => void;
   aoSelecionarCaminhoBreadcrumb: (caminho: Array<string | number>) => void;
+  aoSelecionarPainelComparacao: (painel: "referencia" | "atual") => void;
   aoCopiarTexto: (texto: string, mensagem: string) => Promise<void>;
   aoAlternarExpansao: (id: string) => void;
   aoSelecionarNo: (no: NoJson) => void;
@@ -162,6 +165,7 @@ export function PainelVisualizador({
   noAtivoId,
   mapaDiferencasAtual,
   mapaDiferencasReferencia,
+  painelComparacaoAtivo,
   graficoRef,
   graficoComparacaoAtualRef,
   graficoComparacaoReferenciaRef,
@@ -173,6 +177,7 @@ export function PainelVisualizador({
   aoExpandirTudo,
   aoRecolherTudo,
   aoExportarPng,
+  aoExportarSvg,
   aoAlternarTelaCheia,
   aoAlternarEditor,
   aoAlterarTermoBusca,
@@ -182,6 +187,7 @@ export function PainelVisualizador({
   aoIrParaResultadoAnterior,
   aoIrParaProximoResultado,
   aoSelecionarCaminhoBreadcrumb,
+  aoSelecionarPainelComparacao,
   aoCopiarTexto,
   aoAlternarExpansao,
   aoSelecionarNo,
@@ -371,18 +377,31 @@ export function PainelVisualizador({
                     </div>
                   </>
                 ) : null}
-                {!modoComparacaoAtivo && modoVisualizacao === "grafo" ? (
-                  <button
-                    className="rounded-2xl px-4 py-3 text-left text-sm text-[color:var(--cor-texto)] transition hover:bg-[color:var(--cor-destaque-suave)] disabled:cursor-not-allowed disabled:opacity-45"
-                    disabled={!exportacaoDisponivel}
-                    onClick={() => {
-                      void aoExportarPng();
-                      menuVisualizadorRef.current?.removeAttribute("open");
-                    }}
-                    type="button"
-                  >
-                    Exportar PNG
-                  </button>
+                {exportacaoDisponivel ? (
+                  <>
+                    <button
+                      className="rounded-2xl px-4 py-3 text-left text-sm text-[color:var(--cor-texto)] transition hover:bg-[color:var(--cor-destaque-suave)] disabled:cursor-not-allowed disabled:opacity-45"
+                      disabled={!exportacaoDisponivel}
+                      onClick={() => {
+                        void aoExportarPng();
+                        menuVisualizadorRef.current?.removeAttribute("open");
+                      }}
+                      type="button"
+                    >
+                      Exportar PNG
+                    </button>
+                    <button
+                      className="rounded-2xl px-4 py-3 text-left text-sm text-[color:var(--cor-texto)] transition hover:bg-[color:var(--cor-destaque-suave)] disabled:cursor-not-allowed disabled:opacity-45"
+                      disabled={!exportacaoDisponivel}
+                      onClick={() => {
+                        void aoExportarSvg();
+                        menuVisualizadorRef.current?.removeAttribute("open");
+                      }}
+                      type="button"
+                    >
+                      Exportar SVG
+                    </button>
+                  </>
                 ) : null}
                 <button
                   className="rounded-2xl px-4 py-3 text-left text-sm text-[color:var(--cor-texto)] transition hover:bg-[color:var(--cor-destaque-suave)]"
@@ -586,7 +605,14 @@ export function PainelVisualizador({
           </div>
         ) : (
           <div className="grid h-full min-h-0 gap-3 xl:grid-cols-2">
-            <section className="flex min-h-0 flex-col rounded-[26px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] p-3">
+            <section
+              className={`flex min-h-0 flex-col rounded-[26px] border bg-[color:var(--cor-fundo-elevado)] p-3 ${
+                painelComparacaoAtivo === "referencia"
+                  ? "border-[color:var(--cor-destaque)]"
+                  : "border-[color:var(--cor-borda)]"
+              }`}
+              onClick={() => aoSelecionarPainelComparacao("referencia")}
+            >
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[color:var(--cor-texto-suave)]">
@@ -632,7 +658,14 @@ export function PainelVisualizador({
               </div>
             </section>
 
-            <section className="flex min-h-0 flex-col rounded-[26px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] p-3">
+            <section
+              className={`flex min-h-0 flex-col rounded-[26px] border bg-[color:var(--cor-fundo-elevado)] p-3 ${
+                painelComparacaoAtivo === "atual"
+                  ? "border-[color:var(--cor-destaque)]"
+                  : "border-[color:var(--cor-borda)]"
+              }`}
+              onClick={() => aoSelecionarPainelComparacao("atual")}
+            >
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[color:var(--cor-texto-suave)]">

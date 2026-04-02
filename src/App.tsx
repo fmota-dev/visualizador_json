@@ -1,4 +1,4 @@
-import { toPng } from "html-to-image";
+import { toPng, toSvg } from "html-to-image";
 import {
   useEffect,
   useMemo,
@@ -130,6 +130,9 @@ export default function App() {
   );
   const [presetLayoutGrafo, setPresetLayoutGrafo] = useState(
     workspaceInicial.presetLayoutGrafo,
+  );
+  const [painelComparacaoAtivo, setPainelComparacaoAtivo] = useState<"referencia" | "atual">(
+    "atual",
   );
   const [abaEditorComparacao, setAbaEditorComparacao] = useState<"atual" | "referencia">(
     "atual",
@@ -413,11 +416,16 @@ export default function App() {
 
   const visualizacaoDisponivel = Boolean(arvoreJson);
   const visualizacaoReferenciaDisponivel = Boolean(arvoreReferenciaJson);
-  const exportacaoDisponivel = modoVisualizacao === "grafo" && visualizacaoDisponivel;
   const buscaAtiva = termoBusca.trim().length > 0;
   const modoComparacaoAtivo = modoPainelVisualizador === "comparar";
   const buscaDisponivel =
     !modoComparacaoAtivo || submodoComparacao === "arvore" || submodoComparacao === "grafo";
+  const exportacaoDisponivel = !modoComparacaoAtivo
+    ? modoVisualizacao === "grafo" && visualizacaoDisponivel
+    : submodoComparacao === "grafo" &&
+      (painelComparacaoAtivo === "atual"
+        ? visualizacaoDisponivel
+        : visualizacaoReferenciaDisponivel);
 
   const aoAlternarExpansao = (id: string) => {
     setNosExpandidos((anterior) => {
@@ -546,23 +554,35 @@ export default function App() {
     leitor.readAsText(arquivo, "utf-8");
   };
 
-  const aoExportarPng = async () => {
-    if (!graficoRef.current) {
+  const aoExportarVisualizador = async (formato: "png" | "svg") => {
+    const refAtiva = !modoComparacaoAtivo
+      ? graficoRef
+      : painelComparacaoAtivo === "atual"
+        ? graficoComparacaoAtualRef
+        : graficoComparacaoReferenciaRef;
+
+    if (!refAtiva.current) {
       return;
     }
 
     const estilos = getComputedStyle(document.documentElement);
-    const dataUrl = await toPng(graficoRef.current, {
+    const opcoesExportacao = {
       backgroundColor: estilos.getPropertyValue("--cor-fundo").trim(),
       cacheBust: true,
       pixelRatio: 2,
-    });
+    };
+    const dataUrl =
+      formato === "png"
+        ? await toPng(refAtiva.current, opcoesExportacao)
+        : await toSvg(refAtiva.current, opcoesExportacao);
 
     const link = document.createElement("a");
-    link.download = "visualizador-json-grafo.png";
+    link.download = `visualizador-json-grafo.${formato}`;
     link.href = dataUrl;
     link.click();
   };
+  const aoExportarPng = () => aoExportarVisualizador("png");
+  const aoExportarSvg = () => aoExportarVisualizador("svg");
 
   const aoAbrirEdicaoNo = (no: NoJson) => {
     setNoAtivoId(no.id);
@@ -644,11 +664,13 @@ export default function App() {
       aoEditarNo={aoAbrirEdicaoNo}
       aoExpandirTudo={aoExpandirTudo}
       aoExportarPng={aoExportarPng}
+      aoExportarSvg={aoExportarSvg}
       aoIrParaProximoResultado={aoIrParaProximoResultado}
       aoIrParaResultadoAnterior={aoIrParaResultadoAnterior}
       aoRecolherTudo={aoRecolherTudo}
       aoSelecionarCaminhoBreadcrumb={aoSelecionarCaminhoBreadcrumb}
       aoSelecionarNo={aoSelecionarNo}
+      aoSelecionarPainelComparacao={setPainelComparacaoAtivo}
       arvoreJson={arvoreJson}
       arvoreReferenciaJson={arvoreReferenciaJson}
       buscaAtiva={buscaAtiva}
@@ -674,6 +696,7 @@ export default function App() {
       noAtivoId={noAtivoId}
       noEmFoco={noEmFoco}
       nosExpandidos={nosExpandidosEfetivos}
+      painelComparacaoAtivo={painelComparacaoAtivo}
       presetLayoutGrafo={presetLayoutGrafo}
       resultadoAtualId={resultadoAtual?.id}
       resultadosBuscaQuantidade={resultadosBusca.length}
