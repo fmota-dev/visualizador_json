@@ -1,5 +1,5 @@
 import { DiffEditor } from "@monaco-editor/react";
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import type {
   FiltroBusca,
   ModoPainelVisualizador,
@@ -88,9 +88,34 @@ const opcoesFiltroBusca: Array<{ valor: FiltroBusca; rotulo: string }> = [
   { valor: "tipo", rotulo: "Tipo" },
 ];
 
+const itensLegendaDiferenca: Array<{
+  status: Exclude<StatusDiferencaNo, "igual">;
+  rotulo: string;
+  classes: string;
+}> = [
+  {
+    status: "adicionado",
+    rotulo: "Adicionado",
+    classes:
+      "border-[color:rgba(15,118,110,0.3)] bg-[color:rgba(15,118,110,0.14)] text-[color:var(--cor-acao-secundaria)]",
+  },
+  {
+    status: "removido",
+    rotulo: "Removido",
+    classes:
+      "border-[color:rgba(180,35,24,0.28)] bg-[color:rgba(180,35,24,0.12)] text-[color:var(--cor-perigo)]",
+  },
+  {
+    status: "alterado",
+    rotulo: "Alterado",
+    classes:
+      "border-[color:rgba(199,91,18,0.28)] bg-[color:rgba(199,91,18,0.14)] text-[color:var(--cor-destaque-forte)]",
+  },
+];
+
 function classeBotaoCabecalho(ativo = false) {
   return [
-    "inline-flex items-center justify-center rounded-full border px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-45",
+    "inline-flex items-center justify-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-45",
     ativo
       ? "border-[color:var(--cor-destaque)] bg-[color:var(--cor-destaque)] text-white"
       : "border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] text-[color:var(--cor-texto)] hover:border-[color:var(--cor-borda-forte)] hover:bg-[color:var(--cor-destaque-suave)]",
@@ -131,6 +156,87 @@ function IconeLua() {
         strokeWidth="1.8"
       />
     </svg>
+  );
+}
+
+function IconeExplorar() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="8.2" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="m9.2 14.8 1.8-5.1 5.1-1.8-1.8 5.1-5.1 1.8Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <circle cx="12" cy="12" fill="currentColor" r="1.1" />
+    </svg>
+  );
+}
+
+function IconeComparar() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24">
+      <rect height="12" rx="2.6" stroke="currentColor" strokeWidth="1.8" width="6.8" x="4" y="6" />
+      <rect height="12" rx="2.6" stroke="currentColor" strokeWidth="1.8" width="6.8" x="13.2" y="6" />
+      <path d="M10.8 12h2.4" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function IconeTexto() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24">
+      <path d="M5 7.5h14M8.5 12h7M6.5 16.5h11" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function IconeArvore() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24">
+      <rect height="4" rx="1.2" stroke="currentColor" strokeWidth="1.8" width="5" x="4" y="4.5" />
+      <rect height="4" rx="1.2" stroke="currentColor" strokeWidth="1.8" width="5" x="15" y="9.8" />
+      <rect height="4" rx="1.2" stroke="currentColor" strokeWidth="1.8" width="5" x="15" y="15.2" />
+      <path d="M9 6.5h3.5a2 2 0 0 1 2 2v8.7" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+      <path d="M14.5 11.8H15M14.5 17.2H15" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function IconeGrafo() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24">
+      <circle cx="6" cy="12" r="2.2" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="18" cy="7" r="2.2" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="18" cy="17" r="2.2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8.2 11.1 15.7 7.9M8.2 12.9l7.5 3.2" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function IconeMais() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24">
+      <circle cx="6" cy="12" fill="currentColor" r="1.8" />
+      <circle cx="12" cy="12" fill="currentColor" r="1.8" />
+      <circle cx="18" cy="12" fill="currentColor" r="1.8" />
+    </svg>
+  );
+}
+
+function ConteudoBotaoCabecalho({
+  icone,
+  rotulo,
+}: {
+  icone: ReactNode;
+  rotulo: string;
+}) {
+  return (
+    <>
+      <span className="shrink-0">{icone}</span>
+      <span>{rotulo}</span>
+    </>
   );
 }
 
@@ -257,14 +363,14 @@ export function PainelVisualizador({
                 onClick={() => aoAlterarModoPainelVisualizador("explorar")}
                 type="button"
               >
-                Explorar
+                <ConteudoBotaoCabecalho icone={<IconeExplorar />} rotulo="Explorar" />
               </button>
               <button
                 className={classeBotaoCabecalho(modoComparacaoAtivo)}
                 onClick={() => aoAlterarModoPainelVisualizador("comparar")}
                 type="button"
               >
-                Comparar
+                <ConteudoBotaoCabecalho icone={<IconeComparar />} rotulo="Comparar" />
               </button>
             </div>
 
@@ -276,14 +382,14 @@ export function PainelVisualizador({
                     onClick={() => aoAlterarModoVisualizacao("arvore")}
                     type="button"
                   >
-                    Arvore
+                    <ConteudoBotaoCabecalho icone={<IconeArvore />} rotulo="Arvore" />
                   </button>
                   <button
                     className={classeBotaoCabecalho(modoVisualizacao === "grafo")}
                     onClick={() => aoAlterarModoVisualizacao("grafo")}
                     type="button"
                   >
-                    Grafo
+                    <ConteudoBotaoCabecalho icone={<IconeGrafo />} rotulo="Grafo" />
                   </button>
                 </>
               ) : (
@@ -293,21 +399,21 @@ export function PainelVisualizador({
                     onClick={() => aoAlterarSubmodoComparacao("texto")}
                     type="button"
                   >
-                    Texto
+                    <ConteudoBotaoCabecalho icone={<IconeTexto />} rotulo="Texto" />
                   </button>
                   <button
                     className={classeBotaoCabecalho(submodoComparacao === "arvore")}
                     onClick={() => aoAlterarSubmodoComparacao("arvore")}
                     type="button"
                   >
-                    Arvore
+                    <ConteudoBotaoCabecalho icone={<IconeArvore />} rotulo="Arvore" />
                   </button>
                   <button
                     className={classeBotaoCabecalho(submodoComparacao === "grafo")}
                     onClick={() => aoAlterarSubmodoComparacao("grafo")}
                     type="button"
                   >
-                    Grafo
+                    <ConteudoBotaoCabecalho icone={<IconeGrafo />} rotulo="Grafo" />
                   </button>
                 </>
               )}
@@ -315,7 +421,7 @@ export function PainelVisualizador({
 
             <details className="menu-detalhes relative" ref={menuVisualizadorRef}>
               <summary className={classeBotaoCabecalho()}>
-                Mais
+                <ConteudoBotaoCabecalho icone={<IconeMais />} rotulo="Mais" />
               </summary>
               <div className="menu-flutuante absolute right-0 top-[calc(100%+10px)] z-20 flex min-w-56 flex-col gap-1 rounded-[22px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-painel)] p-2 shadow-2xl">
                 <button
@@ -490,6 +596,27 @@ export function PainelVisualizador({
           </div>
         )}
 
+        {modoComparacaoAtivo && submodoComparacao !== "texto" ? (
+          <div className="flex flex-col gap-3 rounded-[24px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-4 py-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {itensLegendaDiferenca.map((item) => (
+                <span
+                  className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${item.classes}`}
+                  key={item.status}
+                >
+                  {item.rotulo}
+                </span>
+              ))}
+            </div>
+            <p className="text-sm text-[color:var(--cor-texto-suave)]">
+              A coluna <strong className="text-[color:var(--cor-texto)]">Referencia</strong> destaca o
+              que so existe no JSON base, e a coluna{" "}
+              <strong className="text-[color:var(--cor-texto)]">Atual</strong> mostra o que entrou ou
+              mudou no JSON em edicao.
+            </p>
+          </div>
+        ) : null}
+
         {noEmFoco && buscaDisponivel ? (
           <div className="flex flex-col gap-3 rounded-[24px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -626,6 +753,10 @@ export function PainelVisualizador({
                   <span className="text-xs text-[color:var(--cor-perigo)]">JSON invalido</span>
                 ) : null}
               </div>
+              <p className="mb-3 text-xs text-[color:var(--cor-texto-suave)]">
+                Vermelho indica o que existe so na referencia. Laranja marca o que mudou entre os dois
+                lados.
+              </p>
               <div className="min-h-0 flex-1">
                 {submodoComparacao === "arvore" ? (
                   <VisualizadorArvore
@@ -679,6 +810,9 @@ export function PainelVisualizador({
                   <span className="text-xs text-[color:var(--cor-perigo)]">JSON invalido</span>
                 ) : null}
               </div>
+              <p className="mb-3 text-xs text-[color:var(--cor-texto-suave)]">
+                Verde indica o que foi adicionado. Laranja marca o que mudou em relacao ao JSON base.
+              </p>
               <div className="min-h-0 flex-1">
                 {submodoComparacao === "arvore" ? (
                   <VisualizadorArvore

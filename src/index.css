@@ -5,6 +5,9 @@
   --cor-fundo: #f5efe2;
   --cor-fundo-elevado: rgba(255, 250, 240, 0.82);
   --cor-fundo-painel: rgba(250, 245, 236, 0.9);
+  --cor-cartao-arvore: rgba(255, 252, 246, 0.96);
+  --cor-cartao-grafo: rgba(255, 253, 249, 0.98);
+  --cor-cartao-grafo-elevado: rgba(255, 250, 242, 0.99);
   --cor-borda: rgba(115, 79, 38, 0.18);
   --cor-borda-forte: rgba(115, 79, 38, 0.32);
   --cor-texto: #26170e;
@@ -26,6 +29,9 @@
   --cor-fundo: #111a22;
   --cor-fundo-elevado: rgba(15, 25, 34, 0.82);
   --cor-fundo-painel: rgba(14, 24, 33, 0.9);
+  --cor-cartao-arvore: rgba(19, 32, 43, 0.96);
+  --cor-cartao-grafo: rgba(22, 36, 48, 0.98);
+  --cor-cartao-grafo-elevado: rgba(28, 44, 58, 0.99);
   --cor-borda: rgba(158, 191, 202, 0.14);
   --cor-borda-forte: rgba(158, 191, 202, 0.32);
   --cor-texto: #eef6fa;

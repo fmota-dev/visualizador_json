@@ -91,8 +91,10 @@ function compararValores(
           ]),
         );
 
-  const houveMudanca = chaves.some((chave) =>
-    compararValores(
+  let houveMudanca = false;
+
+  chaves.forEach((chave) => {
+    const mudouNesteCaminho = compararValores(
       (valorAtual as Record<string, ValorJson> | ValorJson[])[chave as never] as
         | ValorJson
         | undefined,
@@ -101,8 +103,12 @@ function compararValores(
       ] as ValorJson | undefined,
       [...caminho, chave as SegmentoCaminho],
       mapas,
-    ),
-  );
+    );
+
+    if (mudouNesteCaminho) {
+      houveMudanca = true;
+    }
+  });
 
   if (houveMudanca) {
     mapas.mapaAtual.set(criarIdNo(caminho), "alterado");

@@ -1,6 +1,7 @@
 import {
   Background,
   Controls,
+  type Edge,
   Handle,
   MiniMap,
   Position,
@@ -59,32 +60,67 @@ const classesTipoNo: Record<DadosNoGrafo["tipo"], string> = {
   null: "bg-[color:rgba(107,114,128,0.16)] text-[color:#4b5563]",
 };
 
+const metadadosDiferenca: Record<
+  Exclude<StatusDiferencaNo, "igual">,
+  { rotulo: string; classes: string; corAresta: string }
+> = {
+  adicionado: {
+    rotulo: "Adicionado",
+    classes:
+      "border-[color:rgba(15,118,110,0.32)] bg-[color:rgba(15,118,110,0.18)] text-[color:var(--cor-acao-secundaria)]",
+    corAresta: "rgba(15,118,110,0.72)",
+  },
+  removido: {
+    rotulo: "Removido",
+    classes:
+      "border-[color:rgba(180,35,24,0.3)] bg-[color:rgba(180,35,24,0.18)] text-[color:var(--cor-perigo)]",
+    corAresta: "rgba(180,35,24,0.72)",
+  },
+  alterado: {
+    rotulo: "Alterado",
+    classes:
+      "border-[color:rgba(199,91,18,0.3)] bg-[color:rgba(199,91,18,0.18)] text-[color:var(--cor-destaque-forte)]",
+    corAresta: "rgba(199,91,18,0.74)",
+  },
+};
+
 function classeCartaoNo(data: DadosNoGrafoInterativo) {
   if (data.resultadoAtual) {
-    return "border-[color:var(--cor-destaque)] bg-[color:var(--cor-destaque-suave)]";
+    return "border-[color:var(--cor-destaque)] bg-[color:var(--cor-destaque-suave)] shadow-[0_18px_40px_rgba(199,91,18,0.16)]";
   }
 
   if (data.ativo) {
-    return "border-[color:var(--cor-borda-forte)] bg-[color:var(--cor-fundo-elevado)] shadow-lg shadow-[color:rgba(0,0,0,0.08)]";
+    return "border-[color:var(--cor-borda-forte)] bg-[color:var(--cor-cartao-grafo-elevado)] shadow-[0_18px_42px_rgba(0,0,0,0.16)]";
   }
 
   if (data.statusDiferenca === "adicionado") {
-    return "border-[color:rgba(15,118,110,0.34)] bg-[color:rgba(15,118,110,0.12)]";
+    return "border-[color:rgba(15,118,110,0.44)] bg-[color:rgba(15,118,110,0.14)] shadow-[0_18px_42px_rgba(15,118,110,0.12)]";
   }
 
   if (data.statusDiferenca === "removido") {
-    return "border-[color:rgba(180,35,24,0.28)] bg-[color:rgba(180,35,24,0.08)]";
+    return "border-[color:rgba(180,35,24,0.4)] bg-[color:rgba(180,35,24,0.12)] shadow-[0_18px_42px_rgba(180,35,24,0.12)]";
   }
 
   if (data.statusDiferenca === "alterado") {
-    return "border-[color:rgba(199,91,18,0.34)] bg-[color:rgba(199,91,18,0.1)]";
+    return "border-[color:rgba(199,91,18,0.44)] bg-[color:rgba(199,91,18,0.14)] shadow-[0_18px_42px_rgba(199,91,18,0.12)]";
   }
 
   if (data.correspondeBusca) {
-    return "border-[color:var(--cor-destaque)] bg-[color:var(--cor-fundo-elevado)]";
+    return "border-[color:var(--cor-destaque)] bg-[color:var(--cor-cartao-grafo-elevado)] shadow-[0_18px_40px_rgba(199,91,18,0.12)]";
   }
 
-  return "border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-painel)]";
+  return "border-[color:var(--cor-borda-forte)] bg-[color:var(--cor-cartao-grafo)] shadow-[0_18px_40px_rgba(0,0,0,0.12)]";
+}
+
+function obterEstiloAresta(status: StatusDiferencaNo | undefined): Edge["style"] | undefined {
+  if (!status || status === "igual") {
+    return undefined;
+  }
+
+  return {
+    stroke: metadadosDiferenca[status].corAresta,
+    strokeWidth: 2.4,
+  };
 }
 
 const CartaoNoJson = memo(function CartaoNoJson({
@@ -92,7 +128,7 @@ const CartaoNoJson = memo(function CartaoNoJson({
 }: NodeProps<Node<DadosNoGrafoInterativo>>) {
   return (
     <div
-      className={`w-[272px] rounded-[24px] border p-4 shadow-xl transition ${classeCartaoNo(data)}`}
+      className={`w-[272px] rounded-[24px] border p-4 transition ${classeCartaoNo(data)}`}
     >
       <Handle position={Position.Left} type="target" />
       <div className="flex items-start justify-between gap-3">
@@ -110,6 +146,17 @@ const CartaoNoJson = memo(function CartaoNoJson({
           {data.tipo}
         </span>
       </div>
+      {data.statusDiferenca !== "igual" ? (
+        <div className="mt-3">
+          <span
+            className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${
+              metadadosDiferenca[data.statusDiferenca].classes
+            }`}
+          >
+            {metadadosDiferenca[data.statusDiferenca].rotulo}
+          </span>
+        </div>
+      ) : null}
       <div className="mt-4 flex items-center justify-between gap-2">
         {data.permitirEdicao ? (
           <button
@@ -235,7 +282,10 @@ function GrafoInterno({
           },
         };
       }),
-      edges: base.edges,
+      edges: base.edges.map((edge) => ({
+        ...edge,
+        style: obterEstiloAresta(mapaDiferencas?.get(edge.target)),
+      })),
     };
   }, [
     aoAlternarExpansao,
@@ -290,7 +340,7 @@ function GrafoInterno({
         <Background color="var(--cor-borda)" gap={24} size={1} />
         {miniMapaVisivel ? (
           <MiniMap
-            className="!rounded-[18px] !border !border-[color:var(--cor-borda)] !bg-[color:var(--cor-fundo-painel)]"
+            className="!rounded-[18px] !border !border-[color:var(--cor-borda-forte)] !bg-[color:var(--cor-cartao-grafo)]"
             pannable
             zoomable
           />

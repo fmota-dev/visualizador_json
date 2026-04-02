@@ -20,11 +20,32 @@ export interface PropsVisualizadorArvore {
 const classesDiferenca: Record<StatusDiferencaNo, string> = {
   igual: "",
   adicionado:
-    "border-[color:rgba(15,118,110,0.34)] bg-[color:rgba(15,118,110,0.12)]",
+    "border-[color:rgba(15,118,110,0.42)] bg-[color:rgba(15,118,110,0.14)]",
   removido:
-    "border-[color:rgba(180,35,24,0.28)] bg-[color:rgba(180,35,24,0.08)]",
+    "border-[color:rgba(180,35,24,0.34)] bg-[color:rgba(180,35,24,0.12)]",
   alterado:
-    "border-[color:rgba(199,91,18,0.34)] bg-[color:rgba(199,91,18,0.1)]",
+    "border-[color:rgba(199,91,18,0.42)] bg-[color:rgba(199,91,18,0.14)]",
+};
+
+const metadadosDiferenca: Record<
+  Exclude<StatusDiferencaNo, "igual">,
+  { rotulo: string; classes: string }
+> = {
+  adicionado: {
+    rotulo: "Adicionado",
+    classes:
+      "border-[color:rgba(15,118,110,0.32)] bg-[color:rgba(15,118,110,0.16)] text-[color:var(--cor-acao-secundaria)]",
+  },
+  removido: {
+    rotulo: "Removido",
+    classes:
+      "border-[color:rgba(180,35,24,0.28)] bg-[color:rgba(180,35,24,0.14)] text-[color:var(--cor-perigo)]",
+  },
+  alterado: {
+    rotulo: "Alterado",
+    classes:
+      "border-[color:rgba(199,91,18,0.28)] bg-[color:rgba(199,91,18,0.16)] text-[color:var(--cor-destaque-forte)]",
+  },
 };
 
 function IconeTipoNo({ tipo }: { tipo: NoJson["tipo"] }) {
@@ -111,7 +132,7 @@ function ItemArvore({
             ? "border-[color:var(--cor-destaque)] bg-[color:var(--cor-destaque-suave)] shadow-lg shadow-[color:var(--cor-destaque-suave)]"
             : statusDiferenca !== "igual"
               ? classesDiferenca[statusDiferenca]
-              : "border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)]"
+              : "border-[color:var(--cor-borda-forte)] bg-[color:var(--cor-cartao-arvore)] shadow-[0_10px_24px_rgba(0,0,0,0.06)]"
         } ${relacionadoBusca ? "opacity-100" : "opacity-45"}`}
         style={{ marginLeft: `${no.profundidade * 16}px` }}
       >
@@ -146,15 +167,26 @@ function ItemArvore({
               <TextoMarcado termoBusca={termoBusca} texto={no.resumoValor} />
             </p>
           </div>
-          {correspondeBusca ? (
-            <span className="rounded-full bg-[color:var(--cor-destaque)] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white">
-              Match
-            </span>
-          ) : ativo ? (
-            <span className="rounded-full border border-[color:var(--cor-borda-forte)] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[color:var(--cor-texto)]">
-              Ativo
-            </span>
-          ) : null}
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            {statusDiferenca !== "igual" ? (
+              <span
+                className={`rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${
+                  metadadosDiferenca[statusDiferenca].classes
+                }`}
+              >
+                {metadadosDiferenca[statusDiferenca].rotulo}
+              </span>
+            ) : null}
+            {correspondeBusca ? (
+              <span className="rounded-full bg-[color:var(--cor-destaque)] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white">
+                Match
+              </span>
+            ) : ativo ? (
+              <span className="rounded-full border border-[color:var(--cor-borda-forte)] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[color:var(--cor-texto)]">
+                Ativo
+              </span>
+            ) : null}
+          </div>
         </button>
 
         {permitirEdicao ? (
