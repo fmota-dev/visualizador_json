@@ -84,6 +84,61 @@ function criarNoEditavel(no: NoJson, jsonParseado: ValorJson | null): NoEditavel
   };
 }
 
+function prepararSvgDoVisualizadorParaExportacao(container: HTMLElement) {
+  const seletores = [
+    ".react-flow__edge-path",
+    ".react-flow__edge-interaction",
+    ".react-flow__connection-path",
+    ".react-flow__background-pattern line",
+    ".react-flow__background-pattern path",
+  ].join(", ");
+  const atributos = [
+    ["stroke", "stroke"],
+    ["stroke-width", "strokeWidth"],
+    ["stroke-opacity", "strokeOpacity"],
+    ["stroke-linecap", "strokeLinecap"],
+    ["stroke-linejoin", "strokeLinejoin"],
+    ["stroke-dasharray", "strokeDasharray"],
+    ["fill", "fill"],
+    ["fill-opacity", "fillOpacity"],
+    ["opacity", "opacity"],
+  ] as const;
+
+  const restauracoes: Array<() => void> = [];
+
+  container.querySelectorAll<SVGElement>(seletores).forEach((elemento) => {
+    const estiloCalculado = window.getComputedStyle(elemento);
+    const anteriores = atributos.map(([atributo]) => [
+      atributo,
+      elemento.getAttribute(atributo),
+    ] as const);
+
+    atributos.forEach(([atributo, propriedade]) => {
+      const valor = estiloCalculado[propriedade];
+      if (!valor) {
+        return;
+      }
+
+      elemento.setAttribute(atributo, valor);
+    });
+
+    restauracoes.push(() => {
+      anteriores.forEach(([atributo, valorAnterior]) => {
+        if (valorAnterior === null) {
+          elemento.removeAttribute(atributo);
+          return;
+        }
+
+        elemento.setAttribute(atributo, valorAnterior);
+      });
+    });
+  });
+
+  return () => {
+    restauracoes.reverse().forEach((restaurar) => restaurar());
+  };
+}
+
 export default function App() {
   const [workspaceInicial] = useState(() => carregarWorkspacePersistido());
 
@@ -571,15 +626,24 @@ export default function App() {
       cacheBust: true,
       pixelRatio: 2,
     };
-    const dataUrl =
-      formato === "png"
-        ? await toPng(refAtiva.current, opcoesExportacao)
-        : await toSvg(refAtiva.current, opcoesExportacao);
+    const restaurarSvg =
+      formato === "svg"
+        ? prepararSvgDoVisualizadorParaExportacao(refAtiva.current)
+        : null;
 
-    const link = document.createElement("a");
-    link.download = `visualizador-json-grafo.${formato}`;
-    link.href = dataUrl;
-    link.click();
+    try {
+      const dataUrl =
+        formato === "png"
+          ? await toPng(refAtiva.current, opcoesExportacao)
+          : await toSvg(refAtiva.current, opcoesExportacao);
+
+      const link = document.createElement("a");
+      link.download = `visualizador-json-grafo.${formato}`;
+      link.href = dataUrl;
+      link.click();
+    } finally {
+      restaurarSvg?.();
+    }
   };
   const aoExportarPng = () => aoExportarVisualizador("png");
   const aoExportarSvg = () => aoExportarVisualizador("svg");
