@@ -178,6 +178,9 @@ export default function App() {
     () => new Set(workspaceInicial.nosExpandidos),
   );
   const [noAtivoId, setNoAtivoId] = useState<string | null>(null);
+  const [idsRecolhidosNaBusca, setIdsRecolhidosNaBusca] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [noSelecionadoParaEdicao, setNoSelecionadoParaEdicao] =
     useState<NoEditavel | null>(null);
   const [editorRecolhido, setEditorRecolhido] = useState(
@@ -585,6 +588,10 @@ export default function App() {
   const noEmFoco =
     noAtivo ??
     (arvoreJson && resultadoAtual ? encontrarNoPorId(arvoreJson, resultadoAtual.id) : null);
+  const idsAncestresResultadoAtual = useMemo(
+    () => new Set(resultadoAtual?.idsAncestres ?? []),
+    [resultadoAtual],
+  );
   const itensBreadcrumb = useMemo(() => {
     if (!noEmFoco) {
       return [];
@@ -619,14 +626,21 @@ export default function App() {
       }
     });
 
-    idsAncestres.forEach((id) => {
-      if (id === "raiz" || idsPermitidos.has(id)) {
+    idsAncestresResultadoAtual.forEach((id) => {
+      if (
+        (id === "raiz" || idsPermitidos.has(id)) &&
+        !idsRecolhidosNaBusca.has(id)
+      ) {
         proximo.add(id);
       }
     });
 
     return proximo;
-  }, [arvoreJson, idsAncestres, nosExpandidos]);
+  }, [arvoreJson, idsAncestresResultadoAtual, idsRecolhidosNaBusca, nosExpandidos]);
+
+  useEffect(() => {
+    setIdsRecolhidosNaBusca(new Set());
+  }, [filtroBusca, termoBusca]);
 
   const visualizacaoDisponivel = Boolean(arvoreJson);
   const visualizacaoReferenciaDisponivel = Boolean(arvoreReferenciaJson);
@@ -663,13 +677,31 @@ export default function App() {
   };
 
   const aoAlternarExpansao = (id: string) => {
+    const estaExpandido = nosExpandidosEfetivos.has(id);
+    const noAlternado = arvoreJson ? encontrarNoPorId(arvoreJson, id) : null;
+    const proximoNoAtivoId =
+      !estaExpandido && noAlternado?.filhos[0] ? noAlternado.filhos[0].id : id;
+
+    setNoAtivoId(proximoNoAtivoId);
     setNosExpandidos((anterior) => {
       const proximo = new Set(anterior);
-      if (proximo.has(id)) {
+      if (estaExpandido) {
         proximo.delete(id);
       } else {
         proximo.add(id);
       }
+      return proximo;
+    });
+
+    setIdsRecolhidosNaBusca((anterior) => {
+      const proximo = new Set(anterior);
+
+      if (estaExpandido && idsAncestresResultadoAtual.has(id)) {
+        proximo.add(id);
+      } else {
+        proximo.delete(id);
+      }
+
       return proximo;
     });
   };
@@ -679,10 +711,13 @@ export default function App() {
       return;
     }
 
+    setIdsRecolhidosNaBusca(new Set());
     setNosExpandidos(new Set(coletarIdsExpansiveis(arvoreJson)));
   };
 
   const aoRecolherTudo = () => {
+    setNoAtivoId("raiz");
+    setIdsRecolhidosNaBusca(new Set(idsAncestresResultadoAtual));
     setNosExpandidos(new Set());
   };
 

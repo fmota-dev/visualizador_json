@@ -329,7 +329,7 @@ function ObservadorDeFoco({
 }) {
   const { fitView, getNode, setCenter } =
     useReactFlow<Node<DadosNoGrafoInterativo>>();
-  const idFocado = resultadoAtualId ?? noAtivoId;
+  const idFocado = noAtivoId ?? resultadoAtualId;
   const { paddingFitView } = obterConfiguracaoLayoutGrafo(presetLayout);
 
   useEffect(() => {

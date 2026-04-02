@@ -255,7 +255,7 @@ export function VisualizadorArvore({
       block: "center",
       behavior: "smooth",
     });
-  }, [idFocado]);
+  }, [idFocado, nosExpandidos]);
 
   if (!raiz) {
     return (
