@@ -127,6 +127,21 @@ export function coletarIdsExpansiveis(no: NoJson): string[] {
   return ids;
 }
 
+export function encontrarNoPorId(raiz: NoJson, id: string): NoJson | null {
+  if (raiz.id === id) {
+    return raiz;
+  }
+
+  for (const filho of raiz.filhos) {
+    const encontrado = encontrarNoPorId(filho, id);
+    if (encontrado) {
+      return encontrado;
+    }
+  }
+
+  return null;
+}
+
 export function obterValorPorCaminho(
   valor: ValorJson,
   caminho: SegmentoCaminho[],

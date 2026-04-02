@@ -30,6 +30,9 @@ import type {
 import {
   atualizarValorPorCaminho,
   coletarIdsExpansiveis,
+  criarIdNo,
+  encontrarNoPorId,
+  formatarCaminho,
   serializarJson,
 } from "./utilitarios/json";
 
@@ -144,6 +147,7 @@ export default function App() {
   const [nosExpandidos, setNosExpandidos] = useState<Set<string>>(
     () => new Set(workspaceInicial.nosExpandidos),
   );
+  const [noAtivoId, setNoAtivoId] = useState<string | null>(null);
   const [noSelecionadoParaEdicao, setNoSelecionadoParaEdicao] =
     useState<NoEditavel | null>(null);
   const [editorRecolhido, setEditorRecolhido] = useState(
@@ -154,6 +158,7 @@ export default function App() {
     workspaceInicial.larguraPainelEditor,
   );
   const [redimensionandoEditor, setRedimensionandoEditor] = useState(false);
+  const [feedbackCopia, setFeedbackCopia] = useState("");
 
   const areaPrincipalRef = useRef<HTMLElement>(null);
   const graficoRef = useRef<HTMLDivElement>(null);
@@ -279,6 +284,35 @@ export default function App() {
       ? 0
       : Math.min(indiceResultadoAtual, resultadosBusca.length - 1);
   const resultadoAtual = resultadosBusca[indiceResultadoNormalizado];
+  const noAtivo = useMemo(
+    () =>
+      arvoreJson && noAtivoId ? encontrarNoPorId(arvoreJson, noAtivoId) : null,
+    [arvoreJson, noAtivoId],
+  );
+  const noEmFoco =
+    noAtivo ??
+    (arvoreJson && resultadoAtual ? encontrarNoPorId(arvoreJson, resultadoAtual.id) : null);
+  const itensBreadcrumb = useMemo(() => {
+    if (!noEmFoco) {
+      return [];
+    }
+
+    return [
+      {
+        id: "raiz",
+        rotulo: "raiz",
+        caminho: [] as Array<string | number>,
+      },
+      ...noEmFoco.caminho.map((segmento, indice) => {
+        const caminho = noEmFoco.caminho.slice(0, indice + 1);
+        return {
+          id: criarIdNo(caminho),
+          rotulo: typeof segmento === "number" ? `[${segmento}]` : segmento,
+          caminho,
+        };
+      }),
+    ];
+  }, [noEmFoco]);
 
   const nosExpandidosEfetivos = useMemo(() => {
     const proximo = new Set<string>();
@@ -375,7 +409,12 @@ export default function App() {
   };
 
   const aoAbrirEdicaoNo = (no: NoJson) => {
+    setNoAtivoId(no.id);
     setNoSelecionadoParaEdicao(criarNoEditavel(no));
+  };
+
+  const aoSelecionarNo = (no: NoJson) => {
+    setNoAtivoId(no.id);
   };
 
   const aoIrParaProximoResultado = () => {
@@ -383,9 +422,9 @@ export default function App() {
       return;
     }
 
-    setIndiceResultadoAtual(
-      (indiceAnterior) => (indiceAnterior + 1) % resultadosBusca.length,
-    );
+    const proximoIndice = (indiceResultadoNormalizado + 1) % resultadosBusca.length;
+    setIndiceResultadoAtual(proximoIndice);
+    setNoAtivoId(resultadosBusca[proximoIndice]?.id ?? null);
   };
 
   const aoIrParaResultadoAnterior = () => {
@@ -393,10 +432,37 @@ export default function App() {
       return;
     }
 
-    setIndiceResultadoAtual(
-      (indiceAnterior) =>
-        (indiceAnterior - 1 + resultadosBusca.length) % resultadosBusca.length,
-    );
+    const proximoIndice =
+      (indiceResultadoNormalizado - 1 + resultadosBusca.length) % resultadosBusca.length;
+    setIndiceResultadoAtual(proximoIndice);
+    setNoAtivoId(resultadosBusca[proximoIndice]?.id ?? null);
+  };
+
+  const aoSelecionarCaminhoBreadcrumb = (caminho: Array<string | number>) => {
+    setNoAtivoId(criarIdNo(caminho));
+    setNosExpandidos((anterior) => {
+      const proximo = new Set(anterior);
+      proximo.add("raiz");
+      caminho.forEach((_, indice) => {
+        proximo.add(criarIdNo(caminho.slice(0, indice + 1)));
+      });
+      return proximo;
+    });
+  };
+
+  const aoCopiarTexto = async (texto: string, mensagem: string) => {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setFeedbackCopia(mensagem);
+      window.setTimeout(() => {
+        setFeedbackCopia("");
+      }, 1600);
+    } catch {
+      setFeedbackCopia("Nao foi possivel copiar.");
+      window.setTimeout(() => {
+        setFeedbackCopia("");
+      }, 1600);
+    }
   };
 
   const painelVisualizador = (
@@ -548,6 +614,7 @@ export default function App() {
               onChange={(evento) => {
                 setTermoBusca(evento.target.value);
                 setIndiceResultadoAtual(0);
+                setNoAtivoId(null);
               }}
               placeholder="Buscar por chave, valor, caminho ou tipo..."
               type="search"
@@ -563,6 +630,7 @@ export default function App() {
                 onChange={(evento) => {
                   setFiltroBusca(evento.target.value as FiltroBusca);
                   setIndiceResultadoAtual(0);
+                  setNoAtivoId(null);
                 }}
                 value={filtroBusca}
               >
@@ -596,15 +664,81 @@ export default function App() {
             </div>
           ) : null}
         </div>
+
+        {noEmFoco ? (
+          <div className="flex flex-col gap-3 rounded-[24px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[color:var(--cor-texto-suave)]">
+                  No em foco
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[color:var(--cor-texto)]">
+                  {itensBreadcrumb.map((item, indice) => (
+                    <div className="flex items-center gap-2" key={item.id}>
+                      {indice > 0 ? (
+                        <span className="text-[color:var(--cor-texto-suave)]">/</span>
+                      ) : null}
+                      <button
+                        className="rounded-full border border-[color:var(--cor-borda)] px-3 py-1 transition hover:border-[color:var(--cor-borda-forte)] hover:bg-[color:var(--cor-destaque-suave)]"
+                        onClick={() => aoSelecionarCaminhoBreadcrumb(item.caminho)}
+                        type="button"
+                      >
+                        {item.rotulo}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-[color:var(--cor-texto-suave)]">
+                  Caminho completo: {formatarCaminho(noEmFoco.caminho)}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  className={classeBotaoCabecalho()}
+                  onClick={() =>
+                    void aoCopiarTexto(
+                      formatarCaminho(noEmFoco.caminho),
+                      "Caminho copiado.",
+                    )
+                  }
+                  type="button"
+                >
+                  Copiar caminho
+                </button>
+                <button
+                  className={classeBotaoCabecalho()}
+                  onClick={() =>
+                    void aoCopiarTexto(
+                      serializarJson(noEmFoco.valor),
+                      "JSON copiado.",
+                    )
+                  }
+                  type="button"
+                >
+                  Copiar JSON
+                </button>
+              </div>
+            </div>
+
+            {feedbackCopia ? (
+              <p className="text-xs font-medium text-[color:var(--cor-acao-secundaria)]">
+                {feedbackCopia}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="min-h-0 flex-1 p-3 sm:p-4">
         {modoVisualizacao === "arvore" ? (
           <VisualizadorArvore
             aoAlternarExpansao={aoAlternarExpansao}
+            aoSelecionarNo={aoSelecionarNo}
             aoEditarNo={aoAbrirEdicaoNo}
             idsAncestres={idsAncestres}
             idsCorrespondentes={idsCorrespondentes}
+            noAtivoId={noAtivoId ?? resultadoAtual?.id}
             nosExpandidos={nosExpandidosEfetivos}
             raiz={arvoreJson}
             resultadoAtualId={resultadoAtual?.id}
@@ -613,9 +747,11 @@ export default function App() {
         ) : (
           <VisualizadorGrafo
             aoAlternarExpansao={aoAlternarExpansao}
+            aoSelecionarNo={aoSelecionarNo}
             aoEditarNo={aoAbrirEdicaoNo}
             containerRef={graficoRef}
             idsCorrespondentes={idsCorrespondentes}
+            noAtivoId={noAtivoId ?? resultadoAtual?.id}
             nosExpandidos={nosExpandidosEfetivos}
             raiz={arvoreJson}
             resultadoAtualId={resultadoAtual?.id}

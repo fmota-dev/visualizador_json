@@ -17,18 +17,22 @@ import {
   LARGURA_CARTAO_GRAFO,
   construirElementosDoGrafo,
 } from "../utilitarios/grafo";
+import { encontrarNoPorId } from "../utilitarios/json";
 
 interface PropsVisualizadorGrafo {
   raiz: NoJson | null;
   nosExpandidos: Set<string>;
   idsCorrespondentes: Set<string>;
   resultadoAtualId?: string;
+  noAtivoId?: string;
   containerRef: RefObject<HTMLDivElement | null>;
   aoAlternarExpansao: (id: string) => void;
+  aoSelecionarNo: (no: NoJson) => void;
   aoEditarNo: (no: NoJson) => void;
 }
 
 interface DadosNoGrafoInterativo extends DadosNoGrafo {
+  ativo: boolean;
   aoAlternarExpansao: (id: string) => void;
   aoEditar: () => void;
 }
@@ -50,6 +54,8 @@ const CartaoNoJson = memo(function CartaoNoJson({
       className={`w-[272px] rounded-[24px] border p-4 shadow-xl transition ${
         data.resultadoAtual
           ? "border-[color:var(--cor-destaque)] bg-[color:var(--cor-destaque-suave)]"
+          : data.ativo
+            ? "border-[color:var(--cor-borda-forte)] bg-[color:var(--cor-fundo-elevado)] shadow-lg shadow-[color:rgba(0,0,0,0.08)]"
           : data.correspondeBusca
             ? "border-[color:var(--cor-destaque)] bg-[color:var(--cor-fundo-elevado)]"
             : "border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-painel)]"
@@ -100,35 +106,23 @@ const CartaoNoJson = memo(function CartaoNoJson({
   );
 });
 
-function encontrarNoPorId(raiz: NoJson, id: string): NoJson | null {
-  if (raiz.id === id) {
-    return raiz;
-  }
-
-  for (const filho of raiz.filhos) {
-    const encontrado = encontrarNoPorId(filho, id);
-    if (encontrado) {
-      return encontrado;
-    }
-  }
-
-  return null;
-}
-
 function ObservadorDeFoco({
   nodes,
   resultadoAtualId,
+  noAtivoId,
 }: {
   nodes: Array<Node<DadosNoGrafoInterativo>>;
   resultadoAtualId?: string;
+  noAtivoId?: string;
 }) {
   const { fitView, getNode, setCenter } =
     useReactFlow<Node<DadosNoGrafoInterativo>>();
+  const idFocado = resultadoAtualId ?? noAtivoId;
 
   useEffect(() => {
     const temporizador = window.setTimeout(() => {
-      if (resultadoAtualId) {
-        const no = getNode(resultadoAtualId);
+      if (idFocado) {
+        const no = getNode(idFocado);
         if (no) {
           setCenter(
             no.position.x + LARGURA_CARTAO_GRAFO / 2,
@@ -151,7 +145,7 @@ function ObservadorDeFoco({
     return () => {
       window.clearTimeout(temporizador);
     };
-  }, [fitView, getNode, nodes, resultadoAtualId, setCenter]);
+  }, [fitView, getNode, idFocado, nodes, setCenter]);
 
   return null;
 }
@@ -161,8 +155,10 @@ function GrafoInterno({
   nosExpandidos,
   idsCorrespondentes,
   resultadoAtualId,
+  noAtivoId,
   containerRef,
   aoAlternarExpansao,
+  aoSelecionarNo,
   aoEditarNo,
 }: PropsVisualizadorGrafo) {
   const { nodes, edges } = useMemo(() => {
@@ -184,6 +180,7 @@ function GrafoInterno({
           ...node,
           data: {
             ...node.data,
+            ativo: node.id === noAtivoId,
             aoAlternarExpansao,
             aoEditar: () => {
               if (noOriginal) {
@@ -199,6 +196,7 @@ function GrafoInterno({
     aoAlternarExpansao,
     aoEditarNo,
     idsCorrespondentes,
+    noAtivoId,
     nosExpandidos,
     raiz,
     resultadoAtualId,
@@ -236,14 +234,18 @@ function GrafoInterno({
         onNodeClick={(_, node) => {
           const no = encontrarNoPorId(raiz, node.id);
           if (no) {
-            aoEditarNo(no);
+            aoSelecionarNo(no);
           }
         }}
         proOptions={{ hideAttribution: true }}
       >
         <Background color="var(--cor-borda)" gap={24} size={1} />
         <Controls position="top-right" showInteractive={false} />
-        <ObservadorDeFoco nodes={nodes} resultadoAtualId={resultadoAtualId} />
+        <ObservadorDeFoco
+          noAtivoId={noAtivoId}
+          nodes={nodes}
+          resultadoAtualId={resultadoAtualId}
+        />
       </ReactFlow>
     </div>
   );

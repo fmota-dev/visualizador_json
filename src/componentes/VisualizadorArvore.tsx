@@ -8,8 +8,10 @@ export interface PropsVisualizadorArvore {
   idsCorrespondentes: Set<string>;
   idsAncestres: Set<string>;
   resultadoAtualId?: string;
+  noAtivoId?: string;
   termoBusca: string;
   aoAlternarExpansao: (id: string) => void;
+  aoSelecionarNo: (no: NoJson) => void;
   aoEditarNo: (no: NoJson) => void;
 }
 
@@ -57,8 +59,10 @@ interface PropsItemArvore {
   idsCorrespondentes: Set<string>;
   idsAncestres: Set<string>;
   resultadoAtualId?: string;
+  noAtivoId?: string;
   termoBusca: string;
   aoAlternarExpansao: (id: string) => void;
+  aoSelecionarNo: (no: NoJson) => void;
   aoEditarNo: (no: NoJson) => void;
 }
 
@@ -68,8 +72,10 @@ function ItemArvore({
   idsCorrespondentes,
   idsAncestres,
   resultadoAtualId,
+  noAtivoId,
   termoBusca,
   aoAlternarExpansao,
+  aoSelecionarNo,
   aoEditarNo,
 }: PropsItemArvore) {
   const expansivel = no.filhos.length > 0;
@@ -77,12 +83,14 @@ function ItemArvore({
   const correspondeBusca = idsCorrespondentes.has(no.id);
   const relacionadoBusca =
     correspondeBusca || idsAncestres.has(no.id) || !termoBusca.trim();
+  const ativo = noAtivoId === no.id;
+  const emDestaque = resultadoAtualId === no.id || ativo;
 
   return (
     <div className="space-y-2" data-no-id={no.id}>
       <div
         className={`group flex items-center gap-3 rounded-[22px] border px-3 py-2 transition ${
-          resultadoAtualId === no.id
+          emDestaque
             ? "border-[color:var(--cor-destaque)] bg-[color:var(--cor-destaque-suave)] shadow-lg shadow-[color:var(--cor-destaque-suave)]"
             : "border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)]"
         } ${relacionadoBusca ? "opacity-100" : "opacity-45"}`}
@@ -105,7 +113,7 @@ function ItemArvore({
 
         <button
           className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left"
-          onClick={() => aoEditarNo(no)}
+          onClick={() => aoSelecionarNo(no)}
           type="button"
         >
           <div className="min-w-0">
@@ -123,7 +131,19 @@ function ItemArvore({
             <span className="rounded-full bg-[color:var(--cor-destaque)] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white">
               Match
             </span>
+          ) : ativo ? (
+            <span className="rounded-full border border-[color:var(--cor-borda-forte)] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[color:var(--cor-texto)]">
+              Ativo
+            </span>
           ) : null}
+        </button>
+
+        <button
+          className="rounded-full border border-[color:var(--cor-borda)] px-3 py-1 text-xs font-semibold text-[color:var(--cor-texto)] transition hover:border-[color:var(--cor-borda-forte)] hover:bg-[color:var(--cor-destaque-suave)]"
+          onClick={() => aoEditarNo(no)}
+          type="button"
+        >
+          Editar
         </button>
       </div>
 
@@ -132,11 +152,13 @@ function ItemArvore({
           {no.filhos.map((filho) => (
             <ItemArvore
               aoAlternarExpansao={aoAlternarExpansao}
+              aoSelecionarNo={aoSelecionarNo}
               aoEditarNo={aoEditarNo}
               idsAncestres={idsAncestres}
               idsCorrespondentes={idsCorrespondentes}
               key={filho.id}
               no={filho}
+              noAtivoId={noAtivoId}
               nosExpandidos={nosExpandidos}
               resultadoAtualId={resultadoAtualId}
               termoBusca={termoBusca}
@@ -154,26 +176,29 @@ export function VisualizadorArvore({
   idsCorrespondentes,
   idsAncestres,
   resultadoAtualId,
+  noAtivoId,
   termoBusca,
   aoAlternarExpansao,
+  aoSelecionarNo,
   aoEditarNo,
 }: PropsVisualizadorArvore) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const idFocado = noAtivoId ?? resultadoAtualId;
 
   useEffect(() => {
-    if (!resultadoAtualId || !containerRef.current) {
+    if (!idFocado || !containerRef.current) {
       return;
     }
 
     const elemento = containerRef.current.querySelector<HTMLElement>(
-      `[data-no-id="${resultadoAtualId}"]`,
+      `[data-no-id="${idFocado}"]`,
     );
 
     elemento?.scrollIntoView({
       block: "center",
       behavior: "smooth",
     });
-  }, [resultadoAtualId]);
+  }, [idFocado]);
 
   if (!raiz) {
     return (
@@ -190,10 +215,12 @@ export function VisualizadorArvore({
     >
       <ItemArvore
         aoAlternarExpansao={aoAlternarExpansao}
+        aoSelecionarNo={aoSelecionarNo}
         aoEditarNo={aoEditarNo}
         idsAncestres={idsAncestres}
         idsCorrespondentes={idsCorrespondentes}
         no={raiz}
+        noAtivoId={noAtivoId}
         nosExpandidos={nosExpandidos}
         resultadoAtualId={resultadoAtualId}
         termoBusca={termoBusca}
