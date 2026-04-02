@@ -12,11 +12,17 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 import { memo, useEffect, useMemo, type RefObject } from "react";
-import type { DadosNoGrafo, NoJson, StatusDiferencaNo } from "../tipos/json";
+import type {
+  DadosNoGrafo,
+  NoJson,
+  PresetLayoutGrafo,
+  StatusDiferencaNo,
+} from "../tipos/json";
 import {
   ALTURA_CARTAO_GRAFO,
   LARGURA_CARTAO_GRAFO,
   construirElementosDoGrafo,
+  obterConfiguracaoLayoutGrafo,
 } from "../utilitarios/grafo";
 import { encontrarNoPorId } from "../utilitarios/json";
 
@@ -30,6 +36,7 @@ interface PropsVisualizadorGrafo {
   containerRef: RefObject<HTMLDivElement | null>;
   miniMapaVisivel?: boolean;
   permitirEdicao?: boolean;
+  presetLayout?: PresetLayoutGrafo;
   aoAlternarExpansao: (id: string) => void;
   aoSelecionarNo: (no: NoJson) => void;
   aoEditarNo: (no: NoJson) => void;
@@ -138,14 +145,17 @@ function ObservadorDeFoco({
   nodes,
   resultadoAtualId,
   noAtivoId,
+  presetLayout = "equilibrado",
 }: {
   nodes: Array<Node<DadosNoGrafoInterativo>>;
   resultadoAtualId?: string;
   noAtivoId?: string;
+  presetLayout?: PresetLayoutGrafo;
 }) {
   const { fitView, getNode, setCenter } =
     useReactFlow<Node<DadosNoGrafoInterativo>>();
   const idFocado = resultadoAtualId ?? noAtivoId;
+  const { paddingFitView } = obterConfiguracaoLayoutGrafo(presetLayout);
 
   useEffect(() => {
     const temporizador = window.setTimeout(() => {
@@ -166,14 +176,14 @@ function ObservadorDeFoco({
 
       void fitView({
         duration: 350,
-        padding: 0.24,
+        padding: paddingFitView,
       });
     }, 40);
 
     return () => {
       window.clearTimeout(temporizador);
     };
-  }, [fitView, getNode, idFocado, nodes, setCenter]);
+  }, [fitView, getNode, idFocado, nodes, paddingFitView, setCenter]);
 
   return null;
 }
@@ -188,6 +198,7 @@ function GrafoInterno({
   containerRef,
   miniMapaVisivel,
   permitirEdicao = true,
+  presetLayout = "equilibrado",
   aoAlternarExpansao,
   aoSelecionarNo,
   aoEditarNo,
@@ -202,6 +213,7 @@ function GrafoInterno({
       nosExpandidos,
       idsCorrespondentes,
       resultadoAtualId,
+      presetLayout,
     );
 
     return {
@@ -233,6 +245,7 @@ function GrafoInterno({
     noAtivoId,
     nosExpandidos,
     permitirEdicao,
+    presetLayout,
     raiz,
     resultadoAtualId,
   ]);
@@ -262,7 +275,7 @@ function GrafoInterno({
         defaultViewport={{ x: 0, y: 0, zoom: 0.92 }}
         edges={edges}
         fitView
-        fitViewOptions={{ padding: 0.24 }}
+        fitViewOptions={{ padding: obterConfiguracaoLayoutGrafo(presetLayout).paddingFitView }}
         minZoom={0.2}
         nodes={nodes}
         nodeTypes={nodeTypes}
@@ -286,6 +299,7 @@ function GrafoInterno({
         <ObservadorDeFoco
           noAtivoId={noAtivoId}
           nodes={nodes}
+          presetLayout={presetLayout}
           resultadoAtualId={resultadoAtualId}
         />
       </ReactFlow>

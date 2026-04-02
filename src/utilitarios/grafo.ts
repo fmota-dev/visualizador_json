@@ -1,5 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
-import type { DadosNoGrafo, NoJson } from "../tipos/json";
+import type { DadosNoGrafo, NoJson, PresetLayoutGrafo } from "../tipos/json";
 
 interface ResultadoLayout {
   nodes: Array<Node<DadosNoGrafo>>;
@@ -14,15 +14,40 @@ interface PosicaoInterna {
 export const LARGURA_CARTAO_GRAFO = 272;
 export const ALTURA_CARTAO_GRAFO = 144;
 
-const ESPACAMENTO_HORIZONTAL = 392;
-const ESPACAMENTO_VERTICAL = 168;
+const configuracoesLayout: Record<
+  PresetLayoutGrafo,
+  { espacamentoHorizontal: number; espacamentoVertical: number; paddingFitView: number }
+> = {
+  compacto: {
+    espacamentoHorizontal: 332,
+    espacamentoVertical: 142,
+    paddingFitView: 0.18,
+  },
+  equilibrado: {
+    espacamentoHorizontal: 392,
+    espacamentoVertical: 168,
+    paddingFitView: 0.24,
+  },
+  amplo: {
+    espacamentoHorizontal: 452,
+    espacamentoVertical: 198,
+    paddingFitView: 0.3,
+  },
+};
+
+export function obterConfiguracaoLayoutGrafo(preset: PresetLayoutGrafo) {
+  return configuracoesLayout[preset];
+}
 
 export function construirElementosDoGrafo(
   raiz: NoJson,
   nosExpandidos: Set<string>,
   idsCorrespondentes: Set<string>,
   resultadoAtualId?: string,
+  presetLayout: PresetLayoutGrafo = "equilibrado",
 ): ResultadoLayout {
+  const { espacamentoHorizontal, espacamentoVertical } =
+    obterConfiguracaoLayoutGrafo(presetLayout);
   const posicoes = new Map<string, PosicaoInterna>();
   let cursorY = 0;
 
@@ -31,16 +56,16 @@ export function construirElementosDoGrafo(
       no.filhos.length > 0 && nosExpandidos.has(no.id) ? no.filhos : [];
 
     if (filhosVisiveis.length === 0) {
-      const y = cursorY * ESPACAMENTO_VERTICAL;
+      const y = cursorY * espacamentoVertical;
       cursorY += 1;
-      posicoes.set(no.id, { x: no.profundidade * ESPACAMENTO_HORIZONTAL, y });
+      posicoes.set(no.id, { x: no.profundidade * espacamentoHorizontal, y });
       return y;
     }
 
     const posicoesFilhos = filhosVisiveis.map((filho) => posicionarNo(filho));
     const y =
       (posicoesFilhos[0] + posicoesFilhos[posicoesFilhos.length - 1]) / 2;
-    posicoes.set(no.id, { x: no.profundidade * ESPACAMENTO_HORIZONTAL, y });
+    posicoes.set(no.id, { x: no.profundidade * espacamentoHorizontal, y });
     return y;
   }
 

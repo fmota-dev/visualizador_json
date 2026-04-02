@@ -5,6 +5,7 @@ import type {
   ModoPainelVisualizador,
   ModoVisualizacao,
   NoJson,
+  PresetLayoutGrafo,
   StatusDiferencaNo,
   SubmodoComparacao,
   TemaAplicacao,
@@ -34,6 +35,7 @@ export interface PropsPainelVisualizador {
   exportacaoDisponivel: boolean;
   editorRecolhido: boolean;
   miniMapaVisivel: boolean;
+  presetLayoutGrafo: PresetLayoutGrafo;
   resultadosBuscaQuantidade: number;
   jsonBruto: string;
   jsonReferenciaBruto: string;
@@ -64,6 +66,7 @@ export interface PropsPainelVisualizador {
   aoAlternarEditor: () => void;
   aoAlterarTermoBusca: (termo: string) => void;
   aoAlterarFiltroBusca: (filtro: FiltroBusca) => void;
+  aoAlterarPresetLayoutGrafo: (preset: PresetLayoutGrafo) => void;
   aoAlternarMiniMapa: () => void;
   aoIrParaResultadoAnterior: () => void;
   aoIrParaProximoResultado: () => void;
@@ -143,6 +146,7 @@ export function PainelVisualizador({
   exportacaoDisponivel,
   editorRecolhido,
   miniMapaVisivel,
+  presetLayoutGrafo,
   resultadosBuscaQuantidade,
   jsonBruto,
   jsonReferenciaBruto,
@@ -173,6 +177,7 @@ export function PainelVisualizador({
   aoAlternarEditor,
   aoAlterarTermoBusca,
   aoAlterarFiltroBusca,
+  aoAlterarPresetLayoutGrafo,
   aoAlternarMiniMapa,
   aoIrParaResultadoAnterior,
   aoIrParaProximoResultado,
@@ -331,16 +336,40 @@ export function PainelVisualizador({
                 </button>
                 {(!modoComparacaoAtivo && modoVisualizacao === "grafo") ||
                 (modoComparacaoAtivo && submodoComparacao === "grafo") ? (
-                  <button
-                    className="rounded-2xl px-4 py-3 text-left text-sm text-[color:var(--cor-texto)] transition hover:bg-[color:var(--cor-destaque-suave)]"
-                    onClick={() => {
-                      aoAlternarMiniMapa();
-                      menuVisualizadorRef.current?.removeAttribute("open");
-                    }}
-                    type="button"
-                  >
-                    {miniMapaVisivel ? "Ocultar mini mapa" : "Mostrar mini mapa"}
-                  </button>
+                  <>
+                    <button
+                      className="rounded-2xl px-4 py-3 text-left text-sm text-[color:var(--cor-texto)] transition hover:bg-[color:var(--cor-destaque-suave)]"
+                      onClick={() => {
+                        aoAlternarMiniMapa();
+                        menuVisualizadorRef.current?.removeAttribute("open");
+                      }}
+                      type="button"
+                    >
+                      {miniMapaVisivel ? "Ocultar mini mapa" : "Mostrar mini mapa"}
+                    </button>
+                    <div className="rounded-2xl px-4 py-3 text-sm text-[color:var(--cor-texto)]">
+                      <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-[color:var(--cor-texto-suave)]">
+                        Layout do grafo
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {(["compacto", "equilibrado", "amplo"] as PresetLayoutGrafo[]).map(
+                          (preset) => (
+                            <button
+                              className={classeBotaoCabecalho(presetLayoutGrafo === preset)}
+                              key={preset}
+                              onClick={() => {
+                                aoAlterarPresetLayoutGrafo(preset);
+                                menuVisualizadorRef.current?.removeAttribute("open");
+                              }}
+                              type="button"
+                            >
+                              {preset}
+                            </button>
+                          ),
+                        )}
+                      </div>
+                    </div>
+                  </>
                 ) : null}
                 {!modoComparacaoAtivo && modoVisualizacao === "grafo" ? (
                   <button
@@ -532,6 +561,7 @@ export function PainelVisualizador({
               miniMapaVisivel={miniMapaVisivel}
               noAtivoId={noAtivoId ?? resultadoAtualId}
               nosExpandidos={nosExpandidos}
+              presetLayout={presetLayoutGrafo}
               raiz={arvoreJson}
               resultadoAtualId={resultadoAtualId}
             />
@@ -595,6 +625,7 @@ export function PainelVisualizador({
                     miniMapaVisivel={miniMapaVisivel}
                     nosExpandidos={nosExpandidos}
                     permitirEdicao={false}
+                    presetLayout={presetLayoutGrafo}
                     raiz={arvoreReferenciaJson}
                   />
                 )}
@@ -641,6 +672,7 @@ export function PainelVisualizador({
                     miniMapaVisivel={miniMapaVisivel}
                     noAtivoId={noAtivoId ?? resultadoAtualId}
                     nosExpandidos={nosExpandidos}
+                    presetLayout={presetLayoutGrafo}
                     raiz={arvoreJson}
                     resultadoAtualId={resultadoAtualId}
                   />

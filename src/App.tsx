@@ -14,7 +14,6 @@ import { useJsonParseado } from "./hooks/useJsonParseado";
 import {
   carregarWorkspacePersistido,
   usePersistenciaWorkspace,
-  workspacePersistidoPadrao,
 } from "./hooks/usePersistenciaWorkspace";
 import { useTema } from "./hooks/useTema";
 import type {
@@ -129,6 +128,9 @@ export default function App() {
   const [miniMapaVisivel, setMiniMapaVisivel] = useState(
     workspaceInicial.miniMapaVisivel,
   );
+  const [presetLayoutGrafo, setPresetLayoutGrafo] = useState(
+    workspaceInicial.presetLayoutGrafo,
+  );
   const [abaEditorComparacao, setAbaEditorComparacao] = useState<"atual" | "referencia">(
     "atual",
   );
@@ -175,7 +177,7 @@ export default function App() {
     nosExpandidos: Array.from(nosExpandidos),
     larguraPainelEditor,
     editorRecolhido,
-    presetLayoutGrafo: workspacePersistidoPadrao.presetLayoutGrafo,
+    presetLayoutGrafo,
     miniMapaVisivel,
   });
 
@@ -672,12 +674,14 @@ export default function App() {
       noAtivoId={noAtivoId}
       noEmFoco={noEmFoco}
       nosExpandidos={nosExpandidosEfetivos}
+      presetLayoutGrafo={presetLayoutGrafo}
       resultadoAtualId={resultadoAtual?.id}
       resultadosBuscaQuantidade={resultadosBusca.length}
       submodoComparacao={submodoComparacao}
       temaAplicacao={temaAplicacao}
       termoBusca={termoBusca}
       aoAlternarMiniMapa={() => setMiniMapaVisivel((valorAtual) => !valorAtual)}
+      aoAlterarPresetLayoutGrafo={setPresetLayoutGrafo}
       visualizacaoDisponivel={visualizacaoDisponivel}
       visualizacaoReferenciaDisponivel={visualizacaoReferenciaDisponivel}
       visualizadorTelaCheia={visualizadorTelaCheia}
