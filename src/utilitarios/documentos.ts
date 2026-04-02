@@ -107,20 +107,34 @@ export function detectarFormatoPorConteudo(
       candidatos.push(formato);
     }
   };
+  const pareceJson = conteudo.startsWith("{") || conteudo.startsWith("[");
+  const pareceXml = conteudo.startsWith("<");
+  const pareceToml =
+    /^\s*\[\[[^\]]+\]\]/m.test(conteudo) || /^\s*[\w.-]+\s*=/m.test(conteudo);
+  const pareceYaml =
+    /^\s*-\s+\S/m.test(conteudo) || /^\s*[\w.-]+\s*:\s*\S*/m.test(conteudo);
 
-  if (conteudo.startsWith("{") || conteudo.startsWith("[")) {
+  if (pareceJson) {
+    if (formatoAtual === "json") {
+      return "json";
+    }
+
     adicionarCandidato("json");
   }
 
-  if (conteudo.startsWith("<")) {
+  if (pareceXml) {
+    if (formatoAtual === "xml") {
+      return "xml";
+    }
+
     adicionarCandidato("xml");
   }
 
-  if (/^\s*\[\[[^\]]+\]\]/m.test(conteudo) || /^\s*[\w.-]+\s*=/m.test(conteudo)) {
+  if (pareceToml) {
     adicionarCandidato("toml");
   }
 
-  if (/^\s*-\s+\S/m.test(conteudo) || /^\s*[\w.-]+\s*:\s*\S*/m.test(conteudo)) {
+  if (pareceYaml) {
     adicionarCandidato("yaml");
   }
 
@@ -399,6 +413,19 @@ export function parsearDocumento(bruto: string, formato: FormatoDocumento) {
         return { valorEstruturado, erroDocumento: null, metadadosTabela: null };
       }
       case "xml": {
+        const validacao = XMLValidator.validate(bruto);
+        if (validacao !== true) {
+          return {
+            valorEstruturado: null,
+            erroDocumento: {
+              mensagem: validacao.err.msg,
+              linha: validacao.err.line,
+              coluna: validacao.err.col,
+            },
+            metadadosTabela: null,
+          };
+        }
+
         const valorEstruturado = normalizarValorEstruturado(parserXml.parse(bruto));
         return { valorEstruturado, erroDocumento: null, metadadosTabela: null };
       }

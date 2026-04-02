@@ -25,6 +25,7 @@ export interface WorkspacePersistido {
   nosExpandidos: string[];
   larguraPainelEditor: number;
   editorRecolhido: boolean;
+  scrollSincronizadoEditorComparacao: boolean;
   presetLayoutGrafo: PresetLayoutGrafo;
   miniMapaVisivel: boolean;
 }
@@ -43,6 +44,7 @@ export const workspacePersistidoPadrao: WorkspacePersistido = {
   nosExpandidos: ["raiz"],
   larguraPainelEditor: 31,
   editorRecolhido: false,
+  scrollSincronizadoEditorComparacao: true,
   presetLayoutGrafo: "equilibrado",
   miniMapaVisivel: false,
 };
@@ -145,6 +147,9 @@ export function carregarWorkspacePersistido(): WorkspacePersistido {
       editorRecolhido:
         validarBooleano(valorLido.editorRecolhido) ??
         workspacePersistidoPadrao.editorRecolhido,
+      scrollSincronizadoEditorComparacao:
+        validarBooleano(valorLido.scrollSincronizadoEditorComparacao) ??
+        workspacePersistidoPadrao.scrollSincronizadoEditorComparacao,
       presetLayoutGrafo:
         validarEnumeracao(valorLido.presetLayoutGrafo, [
           "compacto",

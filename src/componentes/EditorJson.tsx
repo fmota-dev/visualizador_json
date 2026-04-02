@@ -1,5 +1,6 @@
 import Editor from "@monaco-editor/react";
 import { useEffect, useRef } from "react";
+import type { editor as MonacoEditor } from "monaco-editor";
 import type { ErroJson, FormatoDocumento } from "../tipos/json";
 import {
   detectarFormatoPorConteudo,
@@ -24,6 +25,7 @@ export interface PropsEditorJson {
   rotuloRecolher?: string;
   permitirTrocaFormato?: boolean;
   autoDetectarFormatoAoColar?: boolean;
+  aoMontarEditorMonaco?: (editor: MonacoEditor.IStandaloneCodeEditor | null) => void;
   aoAlterarJsonBruto: (valor: string) => void;
   aoCarregarArquivo: (arquivo: File) => void;
   aoAlterarFormatoDocumento?: (formato: FormatoDocumento) => void;
@@ -87,6 +89,7 @@ export function EditorJson({
   rotuloRecolher = "Recolher",
   permitirTrocaFormato = true,
   autoDetectarFormatoAoColar = false,
+  aoMontarEditorMonaco,
   aoAlterarJsonBruto,
   aoCarregarArquivo,
   aoAlterarFormatoDocumento,
@@ -112,6 +115,12 @@ export function EditorJson({
   useEffect(() => {
     aoAlterarFormatoDocumentoRef.current = aoAlterarFormatoDocumento;
   }, [aoAlterarFormatoDocumento]);
+
+  useEffect(() => {
+    return () => {
+      aoMontarEditorMonaco?.(null);
+    };
+  }, [aoMontarEditorMonaco]);
 
   if (recolhido) {
     return null;
@@ -218,6 +227,7 @@ export function EditorJson({
           language={obterLinguagemEditor(formatoDocumento)}
           onMount={(editor) => {
             editorMonacoRef.current = editor;
+            aoMontarEditorMonaco?.(editor);
 
             editor.onDidPaste(() => {
               if (!autoDetectarAoColarRef.current) {

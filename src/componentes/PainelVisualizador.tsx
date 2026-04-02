@@ -1,4 +1,6 @@
 import { DiffEditor } from "@monaco-editor/react";
+import type { editor as MonacoEditor } from "monaco-editor";
+import { useEffect, useRef } from "react";
 import type { ReactNode, RefObject } from "react";
 import type {
   FiltroBusca,
@@ -264,6 +266,10 @@ function descreverDisponibilidadeComparacao(
   return "Texto, Arvore e Grafo estao disponiveis para esta combinacao.";
 }
 
+function limitarNumero(valor: number, minimo: number, maximo: number) {
+  return Math.min(maximo, Math.max(minimo, valor));
+}
+
 export function PainelVisualizador({
   visualizadorTelaCheia,
   temaAplicacao,
@@ -328,6 +334,15 @@ export function PainelVisualizador({
   aoSelecionarNo,
   aoEditarNo,
 }: PropsPainelVisualizador) {
+  const editorOriginalDiffRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
+  const editorModificadoDiffRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
+  const decoracoesOriginalDiffRef =
+    useRef<MonacoEditor.IEditorDecorationsCollection | null>(null);
+  const decoracoesModificadoDiffRef =
+    useRef<MonacoEditor.IEditorDecorationsCollection | null>(null);
+  const ladoAtivoDiffRef = useRef<"original" | "modificado">("original");
+  const linhaAtivaOriginalRef = useRef(1);
+  const linhaAtivaModificadoRef = useRef(1);
   const modoComparacaoAtivo = modoPainelVisualizador === "comparar";
   const tabelaDisponivel = formatoDocumento === "csv" && Boolean(metadadosTabela);
   const grafoDisponivel = formatoDocumento !== "csv";
@@ -351,9 +366,88 @@ export function PainelVisualizador({
         : "Comparacao em Grafo"
     : modoVisualizacao === "tabela"
       ? "Modo Tabela"
-    : modoVisualizacao === "arvore"
-      ? "Modo Arvore"
-      : "Modo Grafo";
+      : modoVisualizacao === "arvore"
+        ? "Modo Arvore"
+        : "Modo Grafo";
+
+  const aplicarDestaqueLinhaAtiva = (
+    ladoAtivo: "original" | "modificado",
+    numeroLinha: number,
+  ) => {
+    const editorOriginal = editorOriginalDiffRef.current;
+    const editorModificado = editorModificadoDiffRef.current;
+    const decoracoesOriginal = decoracoesOriginalDiffRef.current;
+    const decoracoesModificado = decoracoesModificadoDiffRef.current;
+
+    if (
+      !editorOriginal ||
+      !editorModificado ||
+      !decoracoesOriginal ||
+      !decoracoesModificado
+    ) {
+      return;
+    }
+
+    const totalLinhasOriginal = editorOriginal.getModel()?.getLineCount() ?? 1;
+    const totalLinhasModificado = editorModificado.getModel()?.getLineCount() ?? 1;
+    const linhaOriginal = limitarNumero(numeroLinha, 1, totalLinhasOriginal);
+    const linhaModificado = limitarNumero(numeroLinha, 1, totalLinhasModificado);
+
+    linhaAtivaOriginalRef.current = linhaOriginal;
+    linhaAtivaModificadoRef.current = linhaModificado;
+    ladoAtivoDiffRef.current = ladoAtivo;
+
+    decoracoesOriginal.set([
+      {
+        options: {
+          className:
+            ladoAtivo === "original" ? "linha-diff-ativa" : "linha-diff-espelho",
+          isWholeLine: true,
+        },
+        range: {
+          startColumn: 1,
+          startLineNumber: linhaOriginal,
+          endColumn: 1,
+          endLineNumber: linhaOriginal,
+        },
+      },
+    ]);
+
+    decoracoesModificado.set([
+      {
+        options: {
+          className:
+            ladoAtivo === "modificado" ? "linha-diff-ativa" : "linha-diff-espelho",
+          isWholeLine: true,
+        },
+        range: {
+          startColumn: 1,
+          startLineNumber: linhaModificado,
+          endColumn: 1,
+          endLineNumber: linhaModificado,
+        },
+      },
+    ]);
+  };
+
+  useEffect(() => {
+    if (submodoComparacao !== "texto") {
+      return;
+    }
+
+    const quadro = window.requestAnimationFrame(() => {
+      aplicarDestaqueLinhaAtiva(
+        ladoAtivoDiffRef.current,
+        ladoAtivoDiffRef.current === "original"
+          ? linhaAtivaOriginalRef.current
+          : linhaAtivaModificadoRef.current,
+      );
+    });
+
+    return () => {
+      window.cancelAnimationFrame(quadro);
+    };
+  }, [jsonBruto, jsonReferenciaBruto, submodoComparacao]);
 
   return (
     <section
@@ -849,22 +943,74 @@ export function PainelVisualizador({
                   {obterRotuloFormato(formatoDocumento)} modificado
                 </h3>
               </div>
-              <p className="text-xs text-[color:var(--cor-texto-suave)]">
-                Original a esquerda, modificado a direita.
-              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={classeBotaoCabecalho(true)}>Scroll sincronizado</span>
+                <p className="text-xs text-[color:var(--cor-texto-suave)]">
+                  Clique em uma linha para manter o foco visual nos dois lados.
+                </p>
+              </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-hidden rounded-[22px] border border-[color:var(--cor-borda)]">
               <DiffEditor
                 height="100%"
+                keepCurrentModifiedModel
+                keepCurrentOriginalModel
                 language="plaintext"
                 modified={jsonBruto}
+                onMount={(editor) => {
+                  const editorOriginal = editor.getOriginalEditor();
+                  const editorModificado = editor.getModifiedEditor();
+
+                  editorOriginalDiffRef.current = editorOriginal;
+                  editorModificadoDiffRef.current = editorModificado;
+                  decoracoesOriginalDiffRef.current =
+                    editorOriginal.createDecorationsCollection();
+                  decoracoesModificadoDiffRef.current =
+                    editorModificado.createDecorationsCollection();
+
+                  const disposicoes = [
+                    editorOriginal.onDidChangeCursorPosition((evento) => {
+                      aplicarDestaqueLinhaAtiva("original", evento.position.lineNumber);
+                    }),
+                    editorModificado.onDidChangeCursorPosition((evento) => {
+                      aplicarDestaqueLinhaAtiva("modificado", evento.position.lineNumber);
+                    }),
+                    editor.onDidUpdateDiff(() => {
+                      const ladoAtivo = ladoAtivoDiffRef.current;
+                      aplicarDestaqueLinhaAtiva(
+                        ladoAtivo,
+                        ladoAtivo === "original"
+                          ? linhaAtivaOriginalRef.current
+                          : linhaAtivaModificadoRef.current,
+                      );
+                    }),
+                  ];
+
+                  aplicarDestaqueLinhaAtiva(
+                    "original",
+                    editorOriginal.getPosition()?.lineNumber ?? 1,
+                  );
+
+                  const limpar = () => {
+                    disposicoes.forEach((disposicao) => disposicao.dispose());
+                    decoracoesOriginalDiffRef.current?.clear();
+                    decoracoesModificadoDiffRef.current?.clear();
+                    decoracoesOriginalDiffRef.current = null;
+                    decoracoesModificadoDiffRef.current = null;
+                    editorOriginalDiffRef.current = null;
+                    editorModificadoDiffRef.current = null;
+                  };
+
+                  editor.onDidDispose(limpar);
+                }}
                 options={{
                   automaticLayout: true,
                   fontSize: 14,
                   minimap: { enabled: false },
                   originalEditable: false,
                   readOnly: true,
+                  renderLineHighlight: "all",
                   renderSideBySide: true,
                   scrollBeyondLastLine: false,
                   wordWrap: "on",

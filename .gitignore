@@ -4,3 +4,5 @@ dist/
 *.log
 coverage/
 node_modules/.tmp/
+.playwright-cli/
+output/

@@ -1,4 +1,5 @@
 import { toPng, toSvg } from "html-to-image";
+import type { editor as MonacoEditor } from "monaco-editor";
 import {
   useEffect,
   useMemo,
@@ -30,6 +31,7 @@ import type {
 import { compararJsonEstruturalmente } from "./utilitarios/comparacao";
 import {
   detectarFormatoPorNomeArquivo,
+  formatosDocumento,
   obterRotuloFormato,
   serializarDocumento,
 } from "./utilitarios/documentos";
@@ -190,6 +192,8 @@ export default function App() {
   const [redimensionandoReferencia, setRedimensionandoReferencia] = useState(false);
   const [feedbackCopia, setFeedbackCopia] = useState("");
   const [editorReferenciaRecolhido, setEditorReferenciaRecolhido] = useState(false);
+  const [scrollSincronizadoEditorComparacao, setScrollSincronizadoEditorComparacao] =
+    useState(workspaceInicial.scrollSincronizadoEditorComparacao);
   const [miniMapaVisivel, setMiniMapaVisivel] = useState(
     workspaceInicial.miniMapaVisivel,
   );
@@ -202,6 +206,10 @@ export default function App() {
   const [abaEditorComparacao, setAbaEditorComparacao] = useState<"atual" | "referencia">(
     "referencia",
   );
+  const [editorMonacoOriginalComparacao, setEditorMonacoOriginalComparacao] =
+    useState<MonacoEditor.IStandaloneCodeEditor | null>(null);
+  const [editorMonacoModificadoComparacao, setEditorMonacoModificadoComparacao] =
+    useState<MonacoEditor.IStandaloneCodeEditor | null>(null);
 
   const areaPrincipalRef = useRef<HTMLElement>(null);
   const painelEditoresComparacaoRef = useRef<HTMLDivElement>(null);
@@ -213,6 +221,9 @@ export default function App() {
   const alturaPainelReferenciaRef = useRef(alturaPainelReferencia);
   const quadroAnimacaoRedimensionamentoRef = useRef<number | null>(null);
   const quadroAnimacaoReferenciaRef = useRef<number | null>(null);
+  const travaSincronizacaoScrollEditorRef = useRef(false);
+  const ultimoScrollOriginalComparacaoRef = useRef({ top: 0, left: 0 });
+  const ultimoScrollModificadoComparacaoRef = useRef({ top: 0, left: 0 });
 
   const {
     valorEstruturado: jsonParseado,
@@ -259,6 +270,7 @@ export default function App() {
     nosExpandidos: Array.from(nosExpandidos),
     larguraPainelEditor,
     editorRecolhido,
+    scrollSincronizadoEditorComparacao,
     presetLayoutGrafo,
     miniMapaVisivel,
   });
@@ -469,6 +481,95 @@ export default function App() {
     modoPainelVisualizador,
     redimensionandoReferencia,
     visualizadorTelaCheia,
+  ]);
+
+  useEffect(() => {
+    if (
+      modoPainelVisualizador !== "comparar" ||
+      !scrollSincronizadoEditorComparacao ||
+      !editorMonacoOriginalComparacao ||
+      !editorMonacoModificadoComparacao
+    ) {
+      return;
+    }
+
+    function sincronizar(
+      origem: MonacoEditor.IStandaloneCodeEditor,
+      destino: MonacoEditor.IStandaloneCodeEditor,
+    ) {
+      if (travaSincronizacaoScrollEditorRef.current) {
+        return;
+      }
+
+      const scrollTop = origem.getScrollTop();
+      const scrollLeft = origem.getScrollLeft();
+
+      if (
+        destino.getScrollTop() === scrollTop &&
+        destino.getScrollLeft() === scrollLeft
+      ) {
+        return;
+      }
+
+      travaSincronizacaoScrollEditorRef.current = true;
+      destino.setScrollTop(scrollTop);
+      destino.setScrollLeft(scrollLeft);
+
+      window.requestAnimationFrame(() => {
+        travaSincronizacaoScrollEditorRef.current = false;
+      });
+    }
+
+    sincronizar(editorMonacoOriginalComparacao, editorMonacoModificadoComparacao);
+    ultimoScrollOriginalComparacaoRef.current = {
+      top: editorMonacoOriginalComparacao.getScrollTop(),
+      left: editorMonacoOriginalComparacao.getScrollLeft(),
+    };
+    ultimoScrollModificadoComparacaoRef.current = {
+      top: editorMonacoModificadoComparacao.getScrollTop(),
+      left: editorMonacoModificadoComparacao.getScrollLeft(),
+    };
+
+    const temporizador = window.setInterval(() => {
+      const scrollOriginal = {
+        top: editorMonacoOriginalComparacao.getScrollTop(),
+        left: editorMonacoOriginalComparacao.getScrollLeft(),
+      };
+      const scrollModificado = {
+        top: editorMonacoModificadoComparacao.getScrollTop(),
+        left: editorMonacoModificadoComparacao.getScrollLeft(),
+      };
+      const originalMudou =
+        scrollOriginal.top !== ultimoScrollOriginalComparacaoRef.current.top ||
+        scrollOriginal.left !== ultimoScrollOriginalComparacaoRef.current.left;
+      const modificadoMudou =
+        scrollModificado.top !== ultimoScrollModificadoComparacaoRef.current.top ||
+        scrollModificado.left !== ultimoScrollModificadoComparacaoRef.current.left;
+
+      if (originalMudou && !modificadoMudou) {
+        sincronizar(editorMonacoOriginalComparacao, editorMonacoModificadoComparacao);
+      } else if (modificadoMudou && !originalMudou) {
+        sincronizar(editorMonacoModificadoComparacao, editorMonacoOriginalComparacao);
+      }
+
+      ultimoScrollOriginalComparacaoRef.current = {
+        top: editorMonacoOriginalComparacao.getScrollTop(),
+        left: editorMonacoOriginalComparacao.getScrollLeft(),
+      };
+      ultimoScrollModificadoComparacaoRef.current = {
+        top: editorMonacoModificadoComparacao.getScrollTop(),
+        left: editorMonacoModificadoComparacao.getScrollLeft(),
+      };
+    }, 90);
+
+    return () => {
+      window.clearInterval(temporizador);
+    };
+  }, [
+    editorMonacoModificadoComparacao,
+    editorMonacoOriginalComparacao,
+    modoPainelVisualizador,
+    scrollSincronizadoEditorComparacao,
   ]);
 
   const indiceResultadoNormalizado =
@@ -820,6 +921,12 @@ export default function App() {
     }
   };
 
+  const aoAlterarFormatoCompartilhadoComparacao = (formato: FormatoDocumento) => {
+    ajustarSubmodoAoTrocarFormato(formato, "atual");
+    setFormatoDocumento(formato);
+    setFormatoDocumentoReferencia(formato);
+  };
+
   const painelVisualizador = (
     <PainelVisualizador
       aoAlterarFiltroBusca={(filtro) => {
@@ -932,7 +1039,33 @@ export default function App() {
                 />
               ) : (
                 <>
-                  <div className="flex gap-2 xl:hidden">
+                  <div className="flex flex-col gap-2 xl:hidden">
+                    <label className="flex items-center gap-2 rounded-[18px] border border-(--cor-borda) bg-(--cor-fundo-elevado) px-3 py-2 text-sm text-(--cor-texto-suave)">
+                      <span className="text-[11px] font-medium uppercase tracking-[0.18em]">
+                        Formato
+                      </span>
+                      <select
+                        className="bg-transparent text-sm font-medium text-(--cor-texto) outline-none"
+                        onChange={(evento) =>
+                          aoAlterarFormatoCompartilhadoComparacao(
+                            evento.target.value as FormatoDocumento,
+                          )
+                        }
+                        value={formatoDocumento}
+                      >
+                        {formatosDocumento.map((formato) => (
+                          <option
+                            className="bg-(--cor-fundo-painel)"
+                            key={formato}
+                            value={formato}
+                          >
+                            {obterRotuloFormato(formato)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div className="flex gap-2">
                     <button
                       className={`flex-1 ${abaEditorComparacao === "referencia" ? "bg-(--cor-destaque) text-white" : "bg-(--cor-fundo-elevado) text-(--cor-texto)"} rounded-full border border-(--cor-borda) px-4 py-2 text-sm font-medium transition`}
                       onClick={() => setAbaEditorComparacao("referencia")}
@@ -946,6 +1079,50 @@ export default function App() {
                       type="button"
                     >
                       Modificado
+                    </button>
+                    </div>
+                  </div>
+
+                  <div className="hidden items-center justify-between gap-3 xl:flex">
+                    <label className="flex items-center gap-2 rounded-[18px] border border-(--cor-borda) bg-(--cor-fundo-elevado) px-3 py-2 text-sm text-(--cor-texto-suave)">
+                      <span className="text-[11px] font-medium uppercase tracking-[0.18em]">
+                        Formato
+                      </span>
+                      <select
+                        className="bg-transparent text-sm font-medium text-(--cor-texto) outline-none"
+                        onChange={(evento) =>
+                          aoAlterarFormatoCompartilhadoComparacao(
+                            evento.target.value as FormatoDocumento,
+                          )
+                        }
+                        value={formatoDocumento}
+                      >
+                        {formatosDocumento.map((formato) => (
+                          <option
+                            className="bg-(--cor-fundo-painel)"
+                            key={formato}
+                            value={formato}
+                          >
+                            {obterRotuloFormato(formato)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <button
+                      className={`rounded-full border px-3 py-2 text-sm font-medium transition ${
+                        scrollSincronizadoEditorComparacao
+                          ? "border-(--cor-destaque) bg-(--cor-destaque) text-white"
+                          : "border-(--cor-borda) bg-(--cor-fundo-elevado) text-(--cor-texto) hover:border-(--cor-borda-forte) hover:bg-(--cor-destaque-suave)"
+                      }`}
+                      onClick={() =>
+                        setScrollSincronizadoEditorComparacao((valorAtual) => !valorAtual)
+                      }
+                      type="button"
+                    >
+                      {scrollSincronizadoEditorComparacao
+                        ? "Scroll sincronizado nos editores"
+                        : "Scroll livre nos editores"}
                     </button>
                   </div>
 
@@ -965,6 +1142,7 @@ export default function App() {
                     ) : (
                       <div className="h-(--altura-editor-referencia) min-h-0">
                         <EditorJson
+                          aoMontarEditorMonaco={setEditorMonacoOriginalComparacao}
                           aoAlterarJsonBruto={setJsonReferenciaBruto}
                           aoAlterarFormatoDocumento={aoAlterarFormatoDocumentoOriginal}
                           aoAlternarEditor={() => setEditorReferenciaRecolhido(true)}
@@ -999,6 +1177,7 @@ export default function App() {
                       className={`min-h-0 ${editorReferenciaRecolhido ? "flex-1" : "h-[calc(100%-var(--altura-editor-referencia)-0.75rem)]"}`}
                     >
                       <EditorJson
+                        aoMontarEditorMonaco={setEditorMonacoModificadoComparacao}
                         aoAlterarJsonBruto={setJsonBruto}
                         aoAlterarFormatoDocumento={aoAlterarFormatoDocumentoModificado}
                         aoAlternarEditor={() => setEditorRecolhido((valorAtual) => !valorAtual)}
