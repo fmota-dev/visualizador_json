@@ -1,8 +1,12 @@
 import { useDeferredValue, useMemo } from "react";
-import type { NoJson } from "../tipos/json";
+import type { FiltroBusca, NoJson } from "../tipos/json";
 import { buscarNaArvore, coletarIdsRelacionadosAResultados } from "../utilitarios/busca";
 
-export function useBuscaJson(arvoreJson: NoJson | null, termoBusca: string) {
+export function useBuscaJson(
+  arvoreJson: NoJson | null,
+  termoBusca: string,
+  filtroBusca: FiltroBusca,
+) {
   const termoBuscaAdiado = useDeferredValue(termoBusca);
 
   return useMemo(() => {
@@ -14,7 +18,11 @@ export function useBuscaJson(arvoreJson: NoJson | null, termoBusca: string) {
       };
     }
 
-    const resultadosBusca = buscarNaArvore(arvoreJson, termoBuscaAdiado);
+    const resultadosBusca = buscarNaArvore(
+      arvoreJson,
+      termoBuscaAdiado,
+      filtroBusca,
+    );
     const { idsCorrespondentes, idsAncestres } =
       coletarIdsRelacionadosAResultados(resultadosBusca);
 
@@ -23,5 +31,5 @@ export function useBuscaJson(arvoreJson: NoJson | null, termoBusca: string) {
       idsCorrespondentes,
       idsAncestres,
     };
-  }, [arvoreJson, termoBuscaAdiado]);
+  }, [arvoreJson, filtroBusca, termoBuscaAdiado]);
 }

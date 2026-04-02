@@ -20,6 +20,7 @@ import {
 } from "./hooks/usePersistenciaWorkspace";
 import { useTema } from "./hooks/useTema";
 import type {
+  FiltroBusca,
   ModoVisualizacao,
   NoEditavel,
   NoJson,
@@ -49,6 +50,14 @@ const EXEMPLO_INICIAL = `{
     }
   }
 }`;
+
+const opcoesFiltroBusca: Array<{ valor: FiltroBusca; rotulo: string }> = [
+  { valor: "todos", rotulo: "Tudo" },
+  { valor: "chave", rotulo: "Chave" },
+  { valor: "valor", rotulo: "Valor" },
+  { valor: "caminho", rotulo: "Caminho" },
+  { valor: "tipo", rotulo: "Tipo" },
+];
 
 function criarNoEditavel(no: NoJson): NoEditavel {
   return {
@@ -128,6 +137,9 @@ export default function App() {
     workspaceInicial.temaAplicacao,
   );
   const [termoBusca, setTermoBusca] = useState(workspaceInicial.termoBusca);
+  const [filtroBusca, setFiltroBusca] = useState<FiltroBusca>(
+    workspaceInicial.filtroBusca,
+  );
   const [indiceResultadoAtual, setIndiceResultadoAtual] = useState(0);
   const [nosExpandidos, setNosExpandidos] = useState<Set<string>>(
     () => new Set(workspaceInicial.nosExpandidos),
@@ -153,6 +165,7 @@ export default function App() {
   const { resultadosBusca, idsCorrespondentes, idsAncestres } = useBuscaJson(
     arvoreJson,
     termoBusca,
+    filtroBusca,
   );
 
   useTema(temaAplicacao);
@@ -165,7 +178,7 @@ export default function App() {
     modoPainelVisualizador: workspacePersistidoPadrao.modoPainelVisualizador,
     submodoComparacao: workspacePersistidoPadrao.submodoComparacao,
     termoBusca,
-    filtroBusca: workspacePersistidoPadrao.filtroBusca,
+    filtroBusca,
     nosExpandidos: Array.from(nosExpandidos),
     larguraPainelEditor,
     editorRecolhido,
@@ -529,13 +542,38 @@ export default function App() {
         </div>
 
         <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
-          <input
-            className="h-11 flex-1 rounded-2xl border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-4 text-[color:var(--cor-texto)] outline-none transition placeholder:text-[color:var(--cor-texto-suave)] focus:border-[color:var(--cor-destaque)]"
-            onChange={(evento) => setTermoBusca(evento.target.value)}
-            placeholder="Buscar por chave, valor ou tipo..."
-            type="search"
-            value={termoBusca}
-          />
+          <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+            <input
+              className="h-11 flex-1 rounded-2xl border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-4 text-[color:var(--cor-texto)] outline-none transition placeholder:text-[color:var(--cor-texto-suave)] focus:border-[color:var(--cor-destaque)]"
+              onChange={(evento) => {
+                setTermoBusca(evento.target.value);
+                setIndiceResultadoAtual(0);
+              }}
+              placeholder="Buscar por chave, valor, caminho ou tipo..."
+              type="search"
+              value={termoBusca}
+            />
+
+            <label className="flex items-center gap-2 rounded-2xl border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-3 text-sm text-[color:var(--cor-texto-suave)]">
+              <span className="whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.18em]">
+                Escopo
+              </span>
+              <select
+                className="h-11 bg-transparent pr-2 text-sm font-medium text-[color:var(--cor-texto)] outline-none"
+                onChange={(evento) => {
+                  setFiltroBusca(evento.target.value as FiltroBusca);
+                  setIndiceResultadoAtual(0);
+                }}
+                value={filtroBusca}
+              >
+                {opcoesFiltroBusca.map((opcao) => (
+                  <option className="bg-[color:var(--cor-fundo-painel)]" key={opcao.valor} value={opcao.valor}>
+                    {opcao.rotulo}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
 
           {buscaAtiva ? (
             <div className="flex gap-2">

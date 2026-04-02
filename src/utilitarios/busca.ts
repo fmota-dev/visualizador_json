@@ -1,4 +1,4 @@
-import type { NoJson, ResultadoBusca } from "../tipos/json";
+import type { FiltroBusca, NoJson, ResultadoBusca } from "../tipos/json";
 import { formatarCaminho } from "./json";
 
 function incluirSeNaoExistir(ids: string[], valor: string) {
@@ -7,7 +7,21 @@ function incluirSeNaoExistir(ids: string[], valor: string) {
   }
 }
 
-export function buscarNaArvore(raiz: NoJson, termoBusca: string): ResultadoBusca[] {
+function determinarTipoCorrespondencia(
+  correspondencias: Array<"chave" | "valor" | "caminho" | "tipo">,
+): ResultadoBusca["tipoCorrespondencia"] {
+  if (correspondencias.length === 1) {
+    return correspondencias[0];
+  }
+
+  return "multiplo";
+}
+
+export function buscarNaArvore(
+  raiz: NoJson,
+  termoBusca: string,
+  filtroBusca: FiltroBusca,
+): ResultadoBusca[] {
   const termoNormalizado = termoBusca.trim().toLowerCase();
 
   if (!termoNormalizado) {
@@ -19,20 +33,29 @@ export function buscarNaArvore(raiz: NoJson, termoBusca: string): ResultadoBusca
   function percorrer(no: NoJson, idsAncestres: string[]) {
     const chaveNormalizada = no.chave.toLowerCase();
     const valorNormalizado = no.resumoValor.toLowerCase();
+    const caminhoNormalizado = formatarCaminho(no.caminho).toLowerCase();
+    const tipoNormalizado = no.tipo.toLowerCase();
     const correspondeChave = chaveNormalizada.includes(termoNormalizado);
     const correspondeValor = valorNormalizado.includes(termoNormalizado);
+    const correspondeCaminho = caminhoNormalizado.includes(termoNormalizado);
+    const correspondeTipo = tipoNormalizado.includes(termoNormalizado);
+    const correspondencias = [
+      correspondeChave ? "chave" : null,
+      correspondeValor ? "valor" : null,
+      correspondeCaminho ? "caminho" : null,
+      correspondeTipo ? "tipo" : null,
+    ].filter(Boolean) as Array<"chave" | "valor" | "caminho" | "tipo">;
+    const correspondeFiltro =
+      filtroBusca === "todos"
+        ? correspondencias.length > 0
+        : correspondencias.includes(filtroBusca);
 
-    if (correspondeChave || correspondeValor) {
+    if (correspondeFiltro) {
       resultados.push({
         id: no.id,
         caminho: no.caminho,
         trecho: `${formatarCaminho(no.caminho)}: ${no.resumoValor}`,
-        tipoCorrespondencia:
-          correspondeChave && correspondeValor
-            ? "chave-e-valor"
-            : correspondeChave
-              ? "chave"
-              : "valor",
+        tipoCorrespondencia: determinarTipoCorrespondencia(correspondencias),
         idsAncestres,
       });
     }

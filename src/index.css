@@ -75,6 +75,7 @@ body {
 button:not(:disabled),
 summary,
 input,
+select,
 textarea {
   font: inherit;
   cursor: pointer;

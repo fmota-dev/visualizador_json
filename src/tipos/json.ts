@@ -38,7 +38,7 @@ export interface ResultadoBusca {
   id: string;
   caminho: SegmentoCaminho[];
   trecho: string;
-  tipoCorrespondencia: "chave" | "valor" | "chave-e-valor";
+  tipoCorrespondencia: "chave" | "valor" | "caminho" | "tipo" | "multiplo";
   idsAncestres: string[];
 }
 
