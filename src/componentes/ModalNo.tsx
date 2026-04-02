@@ -7,6 +7,10 @@ export interface PropsModalNo {
   noEditavel: NoEditavel | null;
   aoFechar: () => void;
   aoConfirmar: (valor: ValorJson) => void;
+  aoAdicionarFilho: (chaveNova: string, valor: ValorJson) => void;
+  aoRenomearChave: (novaChave: string) => void;
+  aoRemoverNo: () => void;
+  aoDuplicarNo: () => void;
 }
 
 function criarValorInicial(noEditavel: NoEditavel | null) {
@@ -52,14 +56,25 @@ function interpretarValorEditado(noEditavel: NoEditavel, valorEditado: string): 
   return JSON.parse(valorEditado) as ValorJson;
 }
 
+function interpretarNovoValorEstrutural(valorEditado: string): ValorJson {
+  return JSON.parse(valorEditado) as ValorJson;
+}
+
 export function ModalNo({
   aberto,
   noEditavel,
   aoFechar,
   aoConfirmar,
+  aoAdicionarFilho,
+  aoRenomearChave,
+  aoRemoverNo,
+  aoDuplicarNo,
 }: PropsModalNo) {
   const [valorEditado, setValorEditado] = useState(() => criarValorInicial(noEditavel));
   const [erroFormulario, setErroFormulario] = useState("");
+  const [chaveNovaFilho, setChaveNovaFilho] = useState("");
+  const [valorNovoFilho, setValorNovoFilho] = useState("null");
+  const [novoNomeChave, setNovoNomeChave] = useState(noEditavel?.chave ?? "");
 
   const caminhoFormatado = useMemo(
     () => (noEditavel ? formatarCaminho(noEditavel.caminho) : ""),
@@ -69,6 +84,13 @@ export function ModalNo({
   if (!aberto || !noEditavel) {
     return null;
   }
+
+  const permiteAdicionarFilho =
+    noEditavel.tipo === "object" || noEditavel.tipo === "array";
+  const permiteRenomear = noEditavel.tipoPai === "object";
+  const permiteRemover =
+    noEditavel.tipoPai === "object" || noEditavel.tipoPai === "array";
+  const permiteDuplicar = noEditavel.tipoPai === "array";
 
   const campoPrincipal =
     noEditavel.tipo === "boolean" ? (
@@ -130,6 +152,13 @@ export function ModalNo({
         <div className="mt-5 flex flex-col gap-4">
           <div className="rounded-[24px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-painel)] px-4 py-3 text-sm text-[color:var(--cor-texto-suave)]">
             Tipo atual: <strong className="text-[color:var(--cor-texto)]">{noEditavel.tipo}</strong>
+            {noEditavel.tipoPai ? (
+              <>
+                {" "}
+                • contêiner pai:{" "}
+                <strong className="text-[color:var(--cor-texto)]">{noEditavel.tipoPai}</strong>
+              </>
+            ) : null}
           </div>
           {campoPrincipal}
           {erroFormulario ? (
@@ -140,6 +169,143 @@ export function ModalNo({
             </p>
           )}
         </div>
+
+        {(permiteAdicionarFilho || permiteRenomear || permiteRemover || permiteDuplicar) ? (
+          <div className="mt-6 flex flex-col gap-4 rounded-[28px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-painel)] p-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.22em] text-[color:var(--cor-texto-suave)]">
+                Edicao estrutural
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-[color:var(--cor-texto)]">
+                Acoes sobre a estrutura do JSON
+              </h3>
+            </div>
+
+            {permiteAdicionarFilho ? (
+              <div className="grid gap-3 rounded-[24px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] p-4">
+                <p className="text-sm font-semibold text-[color:var(--cor-texto)]">
+                  {noEditavel.tipo === "object" ? "Adicionar chave filha" : "Adicionar item"}
+                </p>
+                {noEditavel.tipo === "object" ? (
+                  <input
+                    className="h-12 rounded-2xl border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-painel)] px-4 text-[color:var(--cor-texto)] outline-none focus:border-[color:var(--cor-destaque)]"
+                    onChange={(evento) => setChaveNovaFilho(evento.target.value)}
+                    placeholder="Nome da nova chave"
+                    type="text"
+                    value={chaveNovaFilho}
+                  />
+                ) : null}
+                <textarea
+                  className="min-h-28 rounded-3xl border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-painel)] px-4 py-3 font-mono text-sm text-[color:var(--cor-texto)] outline-none focus:border-[color:var(--cor-destaque)]"
+                  onChange={(evento) => setValorNovoFilho(evento.target.value)}
+                  spellCheck={false}
+                  value={valorNovoFilho}
+                />
+                <button
+                  className="justify-self-start rounded-full bg-[color:var(--cor-destaque)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                  onClick={() => {
+                    try {
+                      if (noEditavel.tipo === "object") {
+                        const chaveTratada = chaveNovaFilho.trim();
+                        if (!chaveTratada) {
+                          throw new Error("Informe o nome da nova chave.");
+                        }
+                        if (Object.prototype.hasOwnProperty.call(noEditavel.valor, chaveTratada)) {
+                          throw new Error("Essa chave ja existe neste objeto.");
+                        }
+                        aoAdicionarFilho(
+                          chaveTratada,
+                          interpretarNovoValorEstrutural(valorNovoFilho),
+                        );
+                      } else {
+                        aoAdicionarFilho("", interpretarNovoValorEstrutural(valorNovoFilho));
+                      }
+                      setErroFormulario("");
+                    } catch (erro) {
+                      setErroFormulario(
+                        erro instanceof Error
+                          ? erro.message
+                          : "Nao foi possivel adicionar o novo elemento.",
+                      );
+                    }
+                  }}
+                  type="button"
+                >
+                  {noEditavel.tipo === "object" ? "Adicionar chave" : "Adicionar item"}
+                </button>
+              </div>
+            ) : null}
+
+            {permiteRenomear ? (
+              <div className="grid gap-3 rounded-[24px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] p-4">
+                <p className="text-sm font-semibold text-[color:var(--cor-texto)]">Renomear chave</p>
+                <input
+                  className="h-12 rounded-2xl border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-painel)] px-4 text-[color:var(--cor-texto)] outline-none focus:border-[color:var(--cor-destaque)]"
+                  onChange={(evento) => setNovoNomeChave(evento.target.value)}
+                  type="text"
+                  value={novoNomeChave}
+                />
+                <button
+                  className="justify-self-start rounded-full border border-[color:var(--cor-borda)] px-4 py-2 text-sm font-semibold text-[color:var(--cor-texto)] transition hover:border-[color:var(--cor-borda-forte)] hover:bg-[color:var(--cor-destaque-suave)]"
+                  onClick={() => {
+                    try {
+                      const nomeTratado = novoNomeChave.trim();
+                      if (!nomeTratado) {
+                        throw new Error("Informe o novo nome da chave.");
+                      }
+                      if (
+                        nomeTratado !== noEditavel.chave &&
+                        noEditavel.chavesDoPai.includes(nomeTratado)
+                      ) {
+                        throw new Error("Ja existe uma chave com esse nome no objeto pai.");
+                      }
+                      aoRenomearChave(nomeTratado);
+                      setErroFormulario("");
+                    } catch (erro) {
+                      setErroFormulario(
+                        erro instanceof Error
+                          ? erro.message
+                          : "Nao foi possivel renomear a chave.",
+                      );
+                    }
+                  }}
+                  type="button"
+                >
+                  Renomear chave
+                </button>
+              </div>
+            ) : null}
+
+            {(permiteRemover || permiteDuplicar) ? (
+              <div className="flex flex-wrap gap-3">
+                {permiteDuplicar ? (
+                  <button
+                    className="rounded-full border border-[color:var(--cor-borda)] px-4 py-2 text-sm font-semibold text-[color:var(--cor-texto)] transition hover:border-[color:var(--cor-borda-forte)] hover:bg-[color:var(--cor-destaque-suave)]"
+                    onClick={() => {
+                      aoDuplicarNo();
+                      setErroFormulario("");
+                    }}
+                    type="button"
+                  >
+                    Duplicar item
+                  </button>
+                ) : null}
+                {permiteRemover ? (
+                  <button
+                    className="rounded-full border border-[color:rgba(180,35,24,0.28)] bg-[color:rgba(180,35,24,0.08)] px-4 py-2 text-sm font-semibold text-[color:var(--cor-perigo)] transition hover:bg-[color:rgba(180,35,24,0.14)]"
+                    onClick={() => {
+                      aoRemoverNo();
+                      setErroFormulario("");
+                    }}
+                    type="button"
+                  >
+                    {noEditavel.tipoPai === "array" ? "Remover item" : "Remover propriedade"}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="mt-6 flex flex-wrap justify-end gap-3">
           <button

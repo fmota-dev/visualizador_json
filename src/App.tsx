@@ -28,11 +28,18 @@ import type {
   ValorJson,
 } from "./tipos/json";
 import {
+  adicionarItemEmArray,
+  adicionarPropriedadeEmObjeto,
   atualizarValorPorCaminho,
   coletarIdsExpansiveis,
   criarIdNo,
+  determinarTipoNo,
+  duplicarItemPorCaminho,
   encontrarNoPorId,
   formatarCaminho,
+  obterValorPorCaminho,
+  removerValorPorCaminho,
+  renomearChavePorCaminho,
   serializarJson,
 } from "./utilitarios/json";
 
@@ -62,12 +69,26 @@ const opcoesFiltroBusca: Array<{ valor: FiltroBusca; rotulo: string }> = [
   { valor: "tipo", rotulo: "Tipo" },
 ];
 
-function criarNoEditavel(no: NoJson): NoEditavel {
+function criarNoEditavel(no: NoJson, jsonParseado: ValorJson | null): NoEditavel {
+  const caminhoPai = no.caminho.slice(0, -1);
+  const tipoPai =
+    jsonParseado && no.caminho.length > 0
+      ? determinarTipoNo(obterValorPorCaminho(jsonParseado, caminhoPai))
+      : null;
+  const chavesDoPai =
+    jsonParseado && tipoPai === "object"
+      ? Object.keys(
+          obterValorPorCaminho(jsonParseado, caminhoPai) as Record<string, ValorJson>,
+        )
+      : [];
+
   return {
     id: no.id,
     caminho: no.caminho,
     chave: no.chave,
     tipo: no.tipo,
+    tipoPai,
+    chavesDoPai,
     valor: no.valor,
   };
 }
@@ -382,6 +403,78 @@ export default function App() {
     setNoSelecionadoParaEdicao(null);
   };
 
+  const aoAdicionarFilho = (chaveNova: string, novoValor: ValorJson) => {
+    if (!jsonParseado || !noSelecionadoParaEdicao) {
+      return;
+    }
+
+    const caminhoPai = noSelecionadoParaEdicao.caminho;
+    const proximoJson =
+      noSelecionadoParaEdicao.tipo === "object"
+        ? adicionarPropriedadeEmObjeto(jsonParseado, caminhoPai, chaveNova, novoValor)
+        : adicionarItemEmArray(jsonParseado, caminhoPai, novoValor);
+    const proximoCaminho =
+      noSelecionadoParaEdicao.tipo === "object"
+        ? [...caminhoPai, chaveNova]
+        : [...caminhoPai, (noSelecionadoParaEdicao.valor as ValorJson[]).length];
+
+    setJsonBruto(serializarJson(proximoJson));
+    setNoAtivoId(criarIdNo(proximoCaminho));
+    setNoSelecionadoParaEdicao(null);
+  };
+
+  const aoRenomearChave = (novaChave: string) => {
+    if (!jsonParseado || !noSelecionadoParaEdicao) {
+      return;
+    }
+
+    const proximoJson = renomearChavePorCaminho(
+      jsonParseado,
+      noSelecionadoParaEdicao.caminho,
+      novaChave,
+    );
+    const proximoCaminho = [
+      ...noSelecionadoParaEdicao.caminho.slice(0, -1),
+      novaChave,
+    ];
+
+    setJsonBruto(serializarJson(proximoJson));
+    setNoAtivoId(criarIdNo(proximoCaminho));
+    setNoSelecionadoParaEdicao(null);
+  };
+
+  const aoRemoverNo = () => {
+    if (!jsonParseado || !noSelecionadoParaEdicao) {
+      return;
+    }
+
+    const caminhoPai = noSelecionadoParaEdicao.caminho.slice(0, -1);
+    const proximoJson = removerValorPorCaminho(jsonParseado, noSelecionadoParaEdicao.caminho);
+
+    setJsonBruto(serializarJson(proximoJson));
+    setNoAtivoId(criarIdNo(caminhoPai));
+    setNoSelecionadoParaEdicao(null);
+  };
+
+  const aoDuplicarNo = () => {
+    if (!jsonParseado || !noSelecionadoParaEdicao) {
+      return;
+    }
+
+    const proximoJson = duplicarItemPorCaminho(jsonParseado, noSelecionadoParaEdicao.caminho);
+    const ultimoSegmento = noSelecionadoParaEdicao.caminho[
+      noSelecionadoParaEdicao.caminho.length - 1
+    ];
+    const proximoCaminho = [
+      ...noSelecionadoParaEdicao.caminho.slice(0, -1),
+      typeof ultimoSegmento === "number" ? ultimoSegmento + 1 : ultimoSegmento,
+    ];
+
+    setJsonBruto(serializarJson(proximoJson));
+    setNoAtivoId(criarIdNo(proximoCaminho));
+    setNoSelecionadoParaEdicao(null);
+  };
+
   const aoCarregarArquivo = (arquivo: File) => {
     const leitor = new FileReader();
     leitor.onload = () => {
@@ -410,7 +503,7 @@ export default function App() {
 
   const aoAbrirEdicaoNo = (no: NoJson) => {
     setNoAtivoId(no.id);
-    setNoSelecionadoParaEdicao(criarNoEditavel(no));
+    setNoSelecionadoParaEdicao(criarNoEditavel(no, jsonParseado));
   };
 
   const aoSelecionarNo = (no: NoJson) => {
@@ -826,8 +919,12 @@ export default function App() {
 
       <ModalNo
         aberto={Boolean(noSelecionadoParaEdicao)}
+        aoAdicionarFilho={aoAdicionarFilho}
         aoConfirmar={aoConfirmarEdicao}
+        aoDuplicarNo={aoDuplicarNo}
         aoFechar={() => setNoSelecionadoParaEdicao(null)}
+        aoRemoverNo={aoRemoverNo}
+        aoRenomearChave={aoRenomearChave}
         key={noSelecionadoParaEdicao?.id ?? "modal-fechado"}
         noEditavel={noSelecionadoParaEdicao}
       />

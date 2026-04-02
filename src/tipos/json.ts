@@ -47,6 +47,8 @@ export interface NoEditavel {
   caminho: SegmentoCaminho[];
   chave: string;
   tipo: TipoNo;
+  tipoPai: TipoNo | null;
+  chavesDoPai: string[];
   valor: ValorJson;
 }
 

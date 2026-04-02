@@ -184,6 +184,126 @@ export function atualizarValorPorCaminho(
   );
 }
 
+export function adicionarPropriedadeEmObjeto(
+  valor: ValorJson,
+  caminhoPai: SegmentoCaminho[],
+  chaveNova: string,
+  novoValor: ValorJson,
+): ValorJson {
+  const alvo = obterValorPorCaminho(valor, caminhoPai);
+
+  if (Array.isArray(alvo) || determinarTipoNo(alvo) !== "object") {
+    throw new Error("O no selecionado nao aceita novas chaves.");
+  }
+
+  return atualizarValorPorCaminho(valor, caminhoPai, {
+    ...(alvo as Record<string, ValorJson>),
+    [chaveNova]: novoValor,
+  });
+}
+
+export function adicionarItemEmArray(
+  valor: ValorJson,
+  caminhoPai: SegmentoCaminho[],
+  novoValor: ValorJson,
+): ValorJson {
+  const alvo = obterValorPorCaminho(valor, caminhoPai);
+
+  if (!Array.isArray(alvo)) {
+    throw new Error("O no selecionado nao aceita novos itens.");
+  }
+
+  return atualizarValorPorCaminho(valor, caminhoPai, [...alvo, novoValor]);
+}
+
+export function removerValorPorCaminho(
+  valor: ValorJson,
+  caminho: SegmentoCaminho[],
+): ValorJson {
+  if (caminho.length === 0) {
+    return valor;
+  }
+
+  const caminhoPai = caminho.slice(0, -1);
+  const segmentoFinal = caminho[caminho.length - 1];
+  const alvoPai = obterValorPorCaminho(valor, caminhoPai);
+
+  if (Array.isArray(alvoPai) && typeof segmentoFinal === "number") {
+    return atualizarValorPorCaminho(
+      valor,
+      caminhoPai,
+      alvoPai.filter((_, indice) => indice !== segmentoFinal),
+    );
+  }
+
+  if (!Array.isArray(alvoPai) && typeof segmentoFinal === "string") {
+    return atualizarValorPorCaminho(
+      valor,
+      caminhoPai,
+      Object.fromEntries(
+        Object.entries(alvoPai as Record<string, ValorJson>).filter(
+          ([chave]) => chave !== segmentoFinal,
+        ),
+      ),
+    );
+  }
+
+  throw new Error("Nao foi possivel remover o no selecionado.");
+}
+
+export function renomearChavePorCaminho(
+  valor: ValorJson,
+  caminho: SegmentoCaminho[],
+  novaChave: string,
+): ValorJson {
+  if (caminho.length === 0) {
+    throw new Error("A raiz nao pode ser renomeada.");
+  }
+
+  const caminhoPai = caminho.slice(0, -1);
+  const segmentoFinal = caminho[caminho.length - 1];
+  const alvoPai = obterValorPorCaminho(valor, caminhoPai);
+
+  if (Array.isArray(alvoPai) || typeof segmentoFinal !== "string") {
+    throw new Error("Somente propriedades de objetos podem ser renomeadas.");
+  }
+
+  return atualizarValorPorCaminho(
+    valor,
+    caminhoPai,
+    Object.fromEntries(
+      Object.entries(alvoPai as Record<string, ValorJson>).map(([chave, item]) => [
+        chave === segmentoFinal ? novaChave : chave,
+        item,
+      ]),
+    ),
+  );
+}
+
+export function duplicarItemPorCaminho(
+  valor: ValorJson,
+  caminho: SegmentoCaminho[],
+): ValorJson {
+  if (caminho.length === 0) {
+    throw new Error("A raiz nao pode ser duplicada.");
+  }
+
+  const caminhoPai = caminho.slice(0, -1);
+  const segmentoFinal = caminho[caminho.length - 1];
+  const alvoPai = obterValorPorCaminho(valor, caminhoPai);
+
+  if (!Array.isArray(alvoPai) || typeof segmentoFinal !== "number") {
+    throw new Error("Somente itens de arrays podem ser duplicados.");
+  }
+
+  const item = alvoPai[segmentoFinal];
+  const clone = JSON.parse(JSON.stringify(item)) as ValorJson;
+  const proximoArray = [...alvoPai];
+  proximoArray.splice(segmentoFinal + 1, 0, clone);
+
+  return atualizarValorPorCaminho(valor, caminhoPai, proximoArray);
+}
+
 function calcularLinhaColunaPorPosicao(jsonBruto: string, posicao: number) {
   const antes = jsonBruto.slice(0, posicao);
   const linhas = antes.split("\n");
