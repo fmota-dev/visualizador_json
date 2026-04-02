@@ -784,7 +784,7 @@ export default function App() {
 
   return (
     <main className="min-h-screen px-3 py-3 sm:px-4 sm:py-4 lg:px-6">
-      <div className="mx-auto flex w-full max-w-[1720px] flex-col gap-3">
+      <div className="mx-auto flex w-full max-w-430 flex-col gap-3">
         {!visualizadorTelaCheia ? (
           <section
             className="flex min-h-0 flex-col gap-3 xl:flex-row"
@@ -792,7 +792,7 @@ export default function App() {
             style={estiloPainelEditor}
           >
             <div
-              className={`shrink-0 transition-all duration-300 xl:w-[var(--largura-painel-editor)] ${
+              className={`shrink-0 transition-all duration-300 xl:w-(--largura-painel-editor) ${
                 editorRecolhido ? "hidden" : "block"
               }`}
             >
@@ -810,14 +810,14 @@ export default function App() {
                 <>
                   <div className="flex gap-2 xl:hidden">
                     <button
-                      className={`flex-1 ${abaEditorComparacao === "atual" ? "bg-[color:var(--cor-destaque)] text-white" : "bg-[color:var(--cor-fundo-elevado)] text-[color:var(--cor-texto)]"} rounded-full border border-[color:var(--cor-borda)] px-4 py-2 text-sm font-medium transition`}
+                      className={`flex-1 ${abaEditorComparacao === "atual" ? "bg-(--cor-destaque) text-white" : "bg-(--cor-fundo-elevado) text-(--cor-texto)"} rounded-full border border-(--cor-borda) px-4 py-2 text-sm font-medium transition`}
                       onClick={() => setAbaEditorComparacao("atual")}
                       type="button"
                     >
                       Atual
                     </button>
                     <button
-                      className={`flex-1 ${abaEditorComparacao === "referencia" ? "bg-[color:var(--cor-destaque)] text-white" : "bg-[color:var(--cor-fundo-elevado)] text-[color:var(--cor-texto)]"} rounded-full border border-[color:var(--cor-borda)] px-4 py-2 text-sm font-medium transition`}
+                      className={`flex-1 ${abaEditorComparacao === "referencia" ? "bg-(--cor-destaque) text-white" : "bg-(--cor-fundo-elevado) text-(--cor-texto)"} rounded-full border border-(--cor-borda) px-4 py-2 text-sm font-medium transition`}
                       onClick={() => setAbaEditorComparacao("referencia")}
                       type="button"
                     >
@@ -826,7 +826,7 @@ export default function App() {
                   </div>
 
                   <div
-                    className="hidden h-[calc(100dvh-1.5rem)] min-h-[520px] flex-col gap-3 sm:h-[calc(100dvh-2rem)] xl:flex"
+                    className="hidden h-[calc(100dvh-1.5rem)] min-h-130 flex-col gap-3 sm:h-[calc(100dvh-2rem)] xl:flex"
                     ref={painelEditoresComparacaoRef}
                     style={estiloPainelEditoresComparacao}
                   >
@@ -854,20 +854,20 @@ export default function App() {
                         onMouseDown={() => setRedimensionandoReferencia(true)}
                         role="separator"
                       >
-                        <div className="h-1 w-28 rounded-full bg-[color:var(--cor-borda-forte)]" />
+                        <div className="h-1 w-28 rounded-full bg-(--cor-borda-forte)" />
                       </div>
                     ) : null}
 
                     {editorReferenciaRecolhido ? (
                       <button
-                        className="rounded-[24px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-4 py-3 text-sm font-semibold text-[color:var(--cor-texto)] transition hover:border-[color:var(--cor-borda-forte)] hover:bg-[color:var(--cor-destaque-suave)]"
+                        className="rounded-3xl border border-(--cor-borda) bg-(--cor-fundo-elevado) px-4 py-3 text-sm font-semibold text-(--cor-texto) transition hover:border-(--cor-borda-forte) hover:bg-(--cor-destaque-suave)"
                         onClick={() => setEditorReferenciaRecolhido(false)}
                         type="button"
                       >
                         Mostrar referencia
                       </button>
                     ) : (
-                      <div className="h-[var(--altura-editor-referencia)] min-h-0">
+                      <div className="h-(--altura-editor-referencia) min-h-0">
                         <EditorJson
                           aoAlterarJsonBruto={setJsonReferenciaBruto}
                           aoAlternarEditor={() => setEditorReferenciaRecolhido(true)}
@@ -924,18 +924,18 @@ export default function App() {
                 onMouseDown={() => setRedimensionandoEditor(true)}
                 role="separator"
               >
-                <div className="h-28 w-1 rounded-full bg-[color:var(--cor-borda-forte)]" />
+                <div className="h-28 w-1 rounded-full bg-(--cor-borda-forte)" />
               </div>
             ) : null}
 
             {editorRecolhido ? (
               <button
-                className="painel-vidro hidden h-[calc(100dvh-1.5rem)] min-h-[520px] w-16 shrink-0 rounded-[28px] border border-[color:var(--cor-borda)] px-2 py-4 text-center text-sm font-semibold text-[color:var(--cor-texto)] transition hover:border-[color:var(--cor-borda-forte)] hover:bg-[color:var(--cor-destaque-suave)] sm:h-[calc(100dvh-2rem)] xl:flex xl:flex-col xl:items-center xl:justify-between"
+                className="painel-vidro hidden h-[calc(100dvh-1.5rem)] min-h-130 w-16 shrink-0 rounded-[28px] border border-(--cor-borda) px-2 py-4 text-center text-sm font-semibold text-(--cor-texto) transition hover:border-(--cor-borda-forte) hover:bg-(--cor-destaque-suave) sm:h-[calc(100dvh-2rem)] xl:flex xl:flex-col xl:items-center xl:justify-between"
                 onClick={() => setEditorRecolhido(false)}
                 type="button"
               >
                 <span className="[writing-mode:vertical-rl]">Abrir editor</span>
-                <span className="rounded-full border border-[color:var(--cor-borda)] px-2 py-1 text-xs">
+                <span className="rounded-full border border-(--cor-borda) px-2 py-1 text-xs">
                   {"</>"}
                 </span>
               </button>
@@ -947,7 +947,7 @@ export default function App() {
       </div>
 
       {visualizadorTelaCheia ? (
-        <div className="fixed inset-0 z-40 bg-[color:rgba(12,18,24,0.28)] p-2 backdrop-blur-sm sm:p-4">
+        <div className="fixed inset-0 z-40 bg-[rgba(12,18,24,0.28)] p-2 backdrop-blur-sm sm:p-4">
           {painelVisualizador}
         </div>
       ) : null}
