@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type {
   FiltroBusca,
+  FormatoDocumento,
   ModoPainelVisualizador,
   ModoVisualizacao,
   PresetLayoutGrafo,
@@ -13,6 +14,8 @@ const CHAVE_WORKSPACE = "visualizador-json:workspace:v1";
 export interface WorkspacePersistido {
   jsonBruto: string;
   jsonReferenciaBruto: string;
+  formatoDocumento: FormatoDocumento;
+  formatoDocumentoReferencia: FormatoDocumento;
   temaAplicacao: TemaAplicacao;
   modoVisualizacao: ModoVisualizacao;
   modoPainelVisualizador: ModoPainelVisualizador;
@@ -29,6 +32,8 @@ export interface WorkspacePersistido {
 export const workspacePersistidoPadrao: WorkspacePersistido = {
   jsonBruto: "",
   jsonReferenciaBruto: "",
+  formatoDocumento: "json",
+  formatoDocumentoReferencia: "json",
   temaAplicacao: "claro",
   modoVisualizacao: "grafo",
   modoPainelVisualizador: "explorar",
@@ -88,17 +93,38 @@ export function carregarWorkspacePersistido(): WorkspacePersistido {
       jsonReferenciaBruto:
         validarTexto(valorLido.jsonReferenciaBruto) ??
         workspacePersistidoPadrao.jsonReferenciaBruto,
+      formatoDocumento:
+        validarEnumeracao(valorLido.formatoDocumento, [
+          "json",
+          "yaml",
+          "toml",
+          "xml",
+          "csv",
+        ]) ?? workspacePersistidoPadrao.formatoDocumento,
+      formatoDocumentoReferencia:
+        validarEnumeracao(valorLido.formatoDocumentoReferencia, [
+          "json",
+          "yaml",
+          "toml",
+          "xml",
+          "csv",
+        ]) ?? workspacePersistidoPadrao.formatoDocumentoReferencia,
       temaAplicacao:
         validarEnumeracao(valorLido.temaAplicacao, ["claro", "escuro"]) ??
         workspacePersistidoPadrao.temaAplicacao,
       modoVisualizacao:
-        validarEnumeracao(valorLido.modoVisualizacao, ["arvore", "grafo"]) ??
+        validarEnumeracao(valorLido.modoVisualizacao, ["arvore", "grafo", "tabela"]) ??
         workspacePersistidoPadrao.modoVisualizacao,
       modoPainelVisualizador:
         validarEnumeracao(valorLido.modoPainelVisualizador, ["explorar", "comparar"]) ??
         workspacePersistidoPadrao.modoPainelVisualizador,
       submodoComparacao:
-        validarEnumeracao(valorLido.submodoComparacao, ["texto", "arvore", "grafo"]) ??
+        validarEnumeracao(valorLido.submodoComparacao, [
+          "texto",
+          "arvore",
+          "grafo",
+          "tabela",
+        ]) ??
         workspacePersistidoPadrao.submodoComparacao,
       termoBusca:
         validarTexto(valorLido.termoBusca) ?? workspacePersistidoPadrao.termoBusca,

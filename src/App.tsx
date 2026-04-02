@@ -10,7 +10,7 @@ import { EditorJson } from "./componentes/EditorJson";
 import { ModalNo } from "./componentes/ModalNo";
 import { PainelVisualizador } from "./componentes/PainelVisualizador";
 import { useBuscaJson } from "./hooks/useBuscaJson";
-import { useJsonParseado } from "./hooks/useJsonParseado";
+import { useDocumentoParseado } from "./hooks/useDocumentoParseado";
 import {
   carregarWorkspacePersistido,
   usePersistenciaWorkspace,
@@ -18,6 +18,7 @@ import {
 import { useTema } from "./hooks/useTema";
 import type {
   FiltroBusca,
+  FormatoDocumento,
   ModoPainelVisualizador,
   ModoVisualizacao,
   NoEditavel,
@@ -27,6 +28,11 @@ import type {
   ValorJson,
 } from "./tipos/json";
 import { compararJsonEstruturalmente } from "./utilitarios/comparacao";
+import {
+  detectarFormatoPorNomeArquivo,
+  obterRotuloFormato,
+  serializarDocumento,
+} from "./utilitarios/documentos";
 import {
   adicionarItemEmArray,
   adicionarPropriedadeEmObjeto,
@@ -39,7 +45,6 @@ import {
   obterValorPorCaminho,
   removerValorPorCaminho,
   renomearChavePorCaminho,
-  serializarJson,
 } from "./utilitarios/json";
 
 const EXEMPLO_INICIAL = `{
@@ -148,6 +153,11 @@ export default function App() {
   const [jsonReferenciaBruto, setJsonReferenciaBruto] = useState(
     workspaceInicial.jsonReferenciaBruto || EXEMPLO_INICIAL,
   );
+  const [formatoDocumento, setFormatoDocumento] = useState<FormatoDocumento>(
+    workspaceInicial.formatoDocumento,
+  );
+  const [formatoDocumentoReferencia, setFormatoDocumentoReferencia] =
+    useState<FormatoDocumento>(workspaceInicial.formatoDocumentoReferencia);
   const [modoVisualizacao, setModoVisualizacao] =
     useState<ModoVisualizacao>(workspaceInicial.modoVisualizacao);
   const [modoPainelVisualizador, setModoPainelVisualizador] =
@@ -190,7 +200,7 @@ export default function App() {
     "atual",
   );
   const [abaEditorComparacao, setAbaEditorComparacao] = useState<"atual" | "referencia">(
-    "atual",
+    "referencia",
   );
 
   const areaPrincipalRef = useRef<HTMLElement>(null);
@@ -204,28 +214,42 @@ export default function App() {
   const quadroAnimacaoRedimensionamentoRef = useRef<number | null>(null);
   const quadroAnimacaoReferenciaRef = useRef<number | null>(null);
 
-  const { jsonParseado, arvoreJson, erroJson } = useJsonParseado(jsonBruto);
   const {
-    jsonParseado: jsonReferenciaParseado,
-    arvoreJson: arvoreReferenciaJson,
-    erroJson: erroJsonReferencia,
-  } = useJsonParseado(jsonReferenciaBruto);
+    valorEstruturado: jsonParseado,
+    arvoreDocumento: arvoreJson,
+    erroDocumento: erroJson,
+    metadadosTabela,
+  } = useDocumentoParseado(jsonBruto, formatoDocumento);
+  const {
+    valorEstruturado: jsonReferenciaParseado,
+    arvoreDocumento: arvoreReferenciaJson,
+    erroDocumento: erroJsonReferencia,
+    metadadosTabela: metadadosTabelaReferencia,
+  } = useDocumentoParseado(jsonReferenciaBruto, formatoDocumentoReferencia);
   const { resultadosBusca, idsCorrespondentes, idsAncestres } = useBuscaJson(
     arvoreJson,
     termoBusca,
     filtroBusca,
   );
-  const { mapaAtual: mapaDiferencasAtual, mapaReferencia: mapaDiferencasReferencia } =
-    useMemo(
-      () => compararJsonEstruturalmente(jsonParseado, jsonReferenciaParseado),
-      [jsonParseado, jsonReferenciaParseado],
-    );
+  const comparacaoMesmoFormato = formatoDocumento === formatoDocumentoReferencia;
+  const { mapaAtual: mapaDiferencasAtual, mapaReferencia: mapaDiferencasReferencia } = useMemo(
+    () =>
+      comparacaoMesmoFormato
+        ? compararJsonEstruturalmente(jsonParseado, jsonReferenciaParseado)
+        : {
+            mapaAtual: new Map(),
+            mapaReferencia: new Map(),
+          },
+    [comparacaoMesmoFormato, jsonParseado, jsonReferenciaParseado],
+  );
 
   useTema(temaAplicacao);
 
   usePersistenciaWorkspace({
     jsonBruto,
     jsonReferenciaBruto,
+    formatoDocumento,
+    formatoDocumentoReferencia,
     temaAplicacao,
     modoVisualizacao,
     modoPainelVisualizador,
@@ -263,6 +287,44 @@ export default function App() {
       window.removeEventListener("keydown", aoPressionarTecla);
     };
   }, [visualizadorTelaCheia]);
+
+  useEffect(() => {
+    if (formatoDocumento === "csv" && modoVisualizacao === "grafo") {
+      setModoVisualizacao("tabela");
+      return;
+    }
+
+    if (formatoDocumento !== "csv" && modoVisualizacao === "tabela") {
+      setModoVisualizacao("grafo");
+    }
+  }, [formatoDocumento, modoVisualizacao]);
+
+  useEffect(() => {
+    if (!comparacaoMesmoFormato) {
+      if (submodoComparacao !== "texto") {
+        setSubmodoComparacao("texto");
+      }
+      return;
+    }
+
+    const comparacaoCsv = formatoDocumento === "csv";
+    const comparacaoComGrafo = formatoDocumento !== "csv";
+
+    if (submodoComparacao === "texto" || submodoComparacao === "arvore") {
+      return;
+    }
+
+    if (submodoComparacao === "tabela") {
+      if (!comparacaoCsv) {
+        setSubmodoComparacao("arvore");
+      }
+      return;
+    }
+
+    if (submodoComparacao === "grafo" && !comparacaoComGrafo) {
+      setSubmodoComparacao(comparacaoCsv ? "tabela" : "arvore");
+    }
+  }, [comparacaoMesmoFormato, formatoDocumento, submodoComparacao]);
 
   useEffect(() => {
     if (!redimensionandoEditor || editorRecolhido || visualizadorTelaCheia) {
@@ -362,7 +424,7 @@ export default function App() {
       }
 
       const limites = painelEditoresComparacaoRef.current.getBoundingClientRect();
-      const porcentagem = ((limites.bottom - evento.clientY) / limites.height) * 100;
+      const porcentagem = ((evento.clientY - limites.top) / limites.height) * 100;
       alturaPainelReferenciaRef.current = Math.min(68, Math.max(24, porcentagem));
 
       if (quadroAnimacaoReferenciaRef.current !== null) {
@@ -462,10 +524,6 @@ export default function App() {
       }
     });
 
-    if (arvoreJson) {
-      proximo.add("raiz");
-    }
-
     return proximo;
   }, [arvoreJson, idsAncestres, nosExpandidos]);
 
@@ -474,13 +532,34 @@ export default function App() {
   const buscaAtiva = termoBusca.trim().length > 0;
   const modoComparacaoAtivo = modoPainelVisualizador === "comparar";
   const buscaDisponivel =
-    !modoComparacaoAtivo || submodoComparacao === "arvore" || submodoComparacao === "grafo";
+    !modoComparacaoAtivo ||
+    (comparacaoMesmoFormato && submodoComparacao !== "texto");
   const exportacaoDisponivel = !modoComparacaoAtivo
-    ? modoVisualizacao === "grafo" && visualizacaoDisponivel
+    ? modoVisualizacao === "grafo" &&
+      visualizacaoDisponivel &&
+      formatoDocumento !== "csv"
     : submodoComparacao === "grafo" &&
+      comparacaoMesmoFormato &&
+      formatoDocumento !== "csv" &&
       (painelComparacaoAtivo === "atual"
         ? visualizacaoDisponivel
         : visualizacaoReferenciaDisponivel);
+
+  const ajustarSubmodoAoTrocarFormato = (
+    proximoFormato: FormatoDocumento,
+    lado: "atual" | "referencia",
+  ) => {
+    if (modoPainelVisualizador !== "comparar" || submodoComparacao !== "texto") {
+      return;
+    }
+
+    const formatoOposto =
+      lado === "atual" ? formatoDocumentoReferencia : formatoDocumento;
+
+    if (proximoFormato !== formatoOposto) {
+      setSubmodoComparacao("arvore");
+    }
+  };
 
   const aoAlternarExpansao = (id: string) => {
     setNosExpandidos((anterior) => {
@@ -503,7 +582,7 @@ export default function App() {
   };
 
   const aoRecolherTudo = () => {
-    setNosExpandidos(new Set(["raiz"]));
+    setNosExpandidos(new Set());
   };
 
   const aoConfirmarEdicao = (novoValor: ValorJson) => {
@@ -517,7 +596,7 @@ export default function App() {
       novoValor,
     );
 
-    setJsonBruto(serializarJson(proximoJson));
+    setJsonBruto(serializarDocumento(proximoJson, formatoDocumento));
     setNoSelecionadoParaEdicao(null);
   };
 
@@ -536,7 +615,7 @@ export default function App() {
         ? [...caminhoPai, chaveNova]
         : [...caminhoPai, (noSelecionadoParaEdicao.valor as ValorJson[]).length];
 
-    setJsonBruto(serializarJson(proximoJson));
+    setJsonBruto(serializarDocumento(proximoJson, formatoDocumento));
     setNoAtivoId(criarIdNo(proximoCaminho));
     setNoSelecionadoParaEdicao(null);
   };
@@ -556,7 +635,7 @@ export default function App() {
       novaChave,
     ];
 
-    setJsonBruto(serializarJson(proximoJson));
+    setJsonBruto(serializarDocumento(proximoJson, formatoDocumento));
     setNoAtivoId(criarIdNo(proximoCaminho));
     setNoSelecionadoParaEdicao(null);
   };
@@ -569,7 +648,7 @@ export default function App() {
     const caminhoPai = noSelecionadoParaEdicao.caminho.slice(0, -1);
     const proximoJson = removerValorPorCaminho(jsonParseado, noSelecionadoParaEdicao.caminho);
 
-    setJsonBruto(serializarJson(proximoJson));
+    setJsonBruto(serializarDocumento(proximoJson, formatoDocumento));
     setNoAtivoId(criarIdNo(caminhoPai));
     setNoSelecionadoParaEdicao(null);
   };
@@ -588,14 +667,23 @@ export default function App() {
       typeof ultimoSegmento === "number" ? ultimoSegmento + 1 : ultimoSegmento,
     ];
 
-    setJsonBruto(serializarJson(proximoJson));
+    setJsonBruto(serializarDocumento(proximoJson, formatoDocumento));
     setNoAtivoId(criarIdNo(proximoCaminho));
     setNoSelecionadoParaEdicao(null);
   };
 
   const aoCarregarArquivo = (arquivo: File) => {
+    const formatoDetectado = detectarFormatoPorNomeArquivo(arquivo.name);
+
     const leitor = new FileReader();
     leitor.onload = () => {
+      if (formatoDetectado) {
+        ajustarSubmodoAoTrocarFormato(formatoDetectado, "atual");
+        setFormatoDocumento(formatoDetectado);
+        if (modoPainelVisualizador === "comparar") {
+          setFormatoDocumentoReferencia(formatoDetectado);
+        }
+      }
       setJsonBruto(String(leitor.result ?? ""));
     };
     leitor.readAsText(arquivo, "utf-8");
@@ -638,7 +726,7 @@ export default function App() {
           : await toSvg(refAtiva.current, opcoesExportacao);
 
       const link = document.createElement("a");
-      link.download = `visualizador-json-grafo.${formato}`;
+      link.download = `fmota-documento-grafo.${formato}`;
       link.href = dataUrl;
       link.click();
     } finally {
@@ -705,6 +793,33 @@ export default function App() {
     }
   };
 
+  const aoAlterarModoPainelVisualizador = (modo: ModoPainelVisualizador) => {
+    if (modo === "comparar" && modoPainelVisualizador !== "comparar") {
+      setFormatoDocumentoReferencia(formatoDocumento);
+      setAbaEditorComparacao("referencia");
+    }
+
+    setModoPainelVisualizador(modo);
+  };
+
+  const aoAlterarFormatoDocumentoModificado = (formato: FormatoDocumento) => {
+    ajustarSubmodoAoTrocarFormato(formato, "atual");
+    setFormatoDocumento(formato);
+
+    if (modoPainelVisualizador === "comparar") {
+      setFormatoDocumentoReferencia(formato);
+    }
+  };
+
+  const aoAlterarFormatoDocumentoOriginal = (formato: FormatoDocumento) => {
+    ajustarSubmodoAoTrocarFormato(formato, "referencia");
+    setFormatoDocumentoReferencia(formato);
+
+    if (modoPainelVisualizador === "comparar") {
+      setFormatoDocumento(formato);
+    }
+  };
+
   const painelVisualizador = (
     <PainelVisualizador
       aoAlterarFiltroBusca={(filtro) => {
@@ -712,7 +827,7 @@ export default function App() {
         setIndiceResultadoAtual(0);
         setNoAtivoId(null);
       }}
-      aoAlterarModoPainelVisualizador={setModoPainelVisualizador}
+      aoAlterarModoPainelVisualizador={aoAlterarModoPainelVisualizador}
       aoAlterarModoVisualizacao={setModoVisualizacao}
       aoAlterarSubmodoComparacao={setSubmodoComparacao}
       aoAlterarTema={setTemaAplicacao}
@@ -740,9 +855,12 @@ export default function App() {
       buscaAtiva={buscaAtiva}
       buscaDisponivel={buscaDisponivel}
       editorRecolhido={editorRecolhido}
+      comparacaoMesmoFormato={comparacaoMesmoFormato}
       exportacaoDisponivel={exportacaoDisponivel}
       feedbackCopia={feedbackCopia}
       filtroBusca={filtroBusca}
+      formatoDocumento={formatoDocumento}
+      formatoDocumentoReferencia={formatoDocumentoReferencia}
       graficoComparacaoAtualRef={graficoComparacaoAtualRef}
       graficoComparacaoReferenciaRef={graficoComparacaoReferenciaRef}
       graficoRef={graficoRef}
@@ -754,6 +872,8 @@ export default function App() {
       mapaDiferencasAtual={mapaDiferencasAtual}
       mapaDiferencasReferencia={mapaDiferencasReferencia}
       menuVisualizadorRef={menuVisualizadorRef}
+      metadadosTabela={metadadosTabela}
+      metadadosTabelaReferencia={metadadosTabelaReferencia}
       miniMapaVisivel={miniMapaVisivel}
       modoPainelVisualizador={modoPainelVisualizador}
       modoVisualizacao={modoVisualizacao}
@@ -799,29 +919,33 @@ export default function App() {
               {modoPainelVisualizador !== "comparar" ? (
                 <EditorJson
                   aoAlterarJsonBruto={setJsonBruto}
+                  aoAlterarFormatoDocumento={aoAlterarFormatoDocumentoModificado}
                   aoAlternarEditor={() => setEditorRecolhido((valorAtual) => !valorAtual)}
                   aoCarregarArquivo={aoCarregarArquivo}
+                  autoDetectarFormatoAoColar
                   erroJson={erroJson}
+                  formatoDocumento={formatoDocumento}
                   jsonBruto={jsonBruto}
                   recolhido={editorRecolhido}
                   temaAplicacao={temaAplicacao}
+                  titulo={obterRotuloFormato(formatoDocumento)}
                 />
               ) : (
                 <>
                   <div className="flex gap-2 xl:hidden">
                     <button
-                      className={`flex-1 ${abaEditorComparacao === "atual" ? "bg-(--cor-destaque) text-white" : "bg-(--cor-fundo-elevado) text-(--cor-texto)"} rounded-full border border-(--cor-borda) px-4 py-2 text-sm font-medium transition`}
-                      onClick={() => setAbaEditorComparacao("atual")}
-                      type="button"
-                    >
-                      Atual
-                    </button>
-                    <button
                       className={`flex-1 ${abaEditorComparacao === "referencia" ? "bg-(--cor-destaque) text-white" : "bg-(--cor-fundo-elevado) text-(--cor-texto)"} rounded-full border border-(--cor-borda) px-4 py-2 text-sm font-medium transition`}
                       onClick={() => setAbaEditorComparacao("referencia")}
                       type="button"
                     >
-                      Referencia
+                      Original
+                    </button>
+                    <button
+                      className={`flex-1 ${abaEditorComparacao === "atual" ? "bg-(--cor-destaque) text-white" : "bg-(--cor-fundo-elevado) text-(--cor-texto)"} rounded-full border border-(--cor-borda) px-4 py-2 text-sm font-medium transition`}
+                      onClick={() => setAbaEditorComparacao("atual")}
+                      type="button"
+                    >
+                      Modificado
                     </button>
                   </div>
 
@@ -830,23 +954,36 @@ export default function App() {
                     ref={painelEditoresComparacaoRef}
                     style={estiloPainelEditoresComparacao}
                   >
-                    <div
-                      className={`min-h-0 ${editorReferenciaRecolhido ? "flex-1" : "h-[calc(100%-var(--altura-editor-referencia)-0.75rem)]"}`}
-                    >
-                      <EditorJson
-                        aoAlterarJsonBruto={setJsonBruto}
-                        aoAlternarEditor={() => setEditorRecolhido((valorAtual) => !valorAtual)}
-                        aoCarregarArquivo={aoCarregarArquivo}
-                        classeContainer="h-full"
-                        erroJson={erroJson}
-                        jsonBruto={jsonBruto}
-                        legenda="Atual"
-                        recolhido={false}
-                        temaAplicacao={temaAplicacao}
-                        titulo="JSON em edicao"
-                        usarAlturaCompleta={false}
-                      />
-                    </div>
+                    {editorReferenciaRecolhido ? (
+                      <button
+                        className="rounded-3xl border border-(--cor-borda) bg-(--cor-fundo-elevado) px-4 py-3 text-sm font-semibold text-(--cor-texto) transition hover:border-(--cor-borda-forte) hover:bg-(--cor-destaque-suave)"
+                        onClick={() => setEditorReferenciaRecolhido(false)}
+                        type="button"
+                      >
+                        Mostrar original
+                      </button>
+                    ) : (
+                      <div className="h-(--altura-editor-referencia) min-h-0">
+                        <EditorJson
+                          aoAlterarJsonBruto={setJsonReferenciaBruto}
+                          aoAlterarFormatoDocumento={aoAlterarFormatoDocumentoOriginal}
+                          aoAlternarEditor={() => setEditorReferenciaRecolhido(true)}
+                          aoCarregarArquivo={aoCarregarArquivoReferencia}
+                          autoDetectarFormatoAoColar
+                          classeContainer="h-full"
+                          erroJson={erroJsonReferencia}
+                          formatoDocumento={formatoDocumentoReferencia}
+                          jsonBruto={jsonReferenciaBruto}
+                          legenda="Original"
+                          permitirTrocaFormato={false}
+                          recolhido={false}
+                          rotuloRecolher="Ocultar original"
+                          temaAplicacao={temaAplicacao}
+                          titulo={`${obterRotuloFormato(formatoDocumentoReferencia)} original`}
+                          usarAlturaCompleta={false}
+                        />
+                      </div>
+                    )}
 
                     {!editorReferenciaRecolhido ? (
                       <div
@@ -858,59 +995,62 @@ export default function App() {
                       </div>
                     ) : null}
 
-                    {editorReferenciaRecolhido ? (
-                      <button
-                        className="rounded-3xl border border-(--cor-borda) bg-(--cor-fundo-elevado) px-4 py-3 text-sm font-semibold text-(--cor-texto) transition hover:border-(--cor-borda-forte) hover:bg-(--cor-destaque-suave)"
-                        onClick={() => setEditorReferenciaRecolhido(false)}
-                        type="button"
-                      >
-                        Mostrar referencia
-                      </button>
-                    ) : (
-                      <div className="h-(--altura-editor-referencia) min-h-0">
-                        <EditorJson
-                          aoAlterarJsonBruto={setJsonReferenciaBruto}
-                          aoAlternarEditor={() => setEditorReferenciaRecolhido(true)}
-                          aoCarregarArquivo={aoCarregarArquivoReferencia}
-                          classeContainer="h-full"
-                          erroJson={erroJsonReferencia}
-                          jsonBruto={jsonReferenciaBruto}
-                          legenda="Referencia"
-                          recolhido={false}
-                          rotuloRecolher="Ocultar referencia"
-                          temaAplicacao={temaAplicacao}
-                          titulo="JSON base"
-                          usarAlturaCompleta={false}
-                        />
-                      </div>
-                    )}
+                    <div
+                      className={`min-h-0 ${editorReferenciaRecolhido ? "flex-1" : "h-[calc(100%-var(--altura-editor-referencia)-0.75rem)]"}`}
+                    >
+                      <EditorJson
+                        aoAlterarJsonBruto={setJsonBruto}
+                        aoAlterarFormatoDocumento={aoAlterarFormatoDocumentoModificado}
+                        aoAlternarEditor={() => setEditorRecolhido((valorAtual) => !valorAtual)}
+                        aoCarregarArquivo={aoCarregarArquivo}
+                        autoDetectarFormatoAoColar
+                        classeContainer="h-full"
+                        erroJson={erroJson}
+                        formatoDocumento={formatoDocumento}
+                        jsonBruto={jsonBruto}
+                        legenda="Modificado"
+                        permitirTrocaFormato={false}
+                        recolhido={false}
+                        temaAplicacao={temaAplicacao}
+                        titulo={`${obterRotuloFormato(formatoDocumento)} modificado`}
+                        usarAlturaCompleta={false}
+                      />
+                    </div>
                   </div>
 
                   <div className="xl:hidden">
-                    {abaEditorComparacao === "atual" ? (
-                      <EditorJson
-                        aoAlterarJsonBruto={setJsonBruto}
-                        aoAlternarEditor={() => setEditorRecolhido((valorAtual) => !valorAtual)}
-                        aoCarregarArquivo={aoCarregarArquivo}
-                        erroJson={erroJson}
-                        jsonBruto={jsonBruto}
-                        legenda="Atual"
-                        recolhido={false}
-                        temaAplicacao={temaAplicacao}
-                        titulo="JSON em edicao"
-                      />
-                    ) : (
+                    {abaEditorComparacao === "referencia" ? (
                       <EditorJson
                         aoAlterarJsonBruto={setJsonReferenciaBruto}
+                        aoAlterarFormatoDocumento={aoAlterarFormatoDocumentoOriginal}
                         aoAlternarEditor={() => setAbaEditorComparacao("atual")}
                         aoCarregarArquivo={aoCarregarArquivoReferencia}
+                        autoDetectarFormatoAoColar
                         erroJson={erroJsonReferencia}
+                        formatoDocumento={formatoDocumentoReferencia}
                         jsonBruto={jsonReferenciaBruto}
-                        legenda="Referencia"
+                        legenda="Original"
+                        permitirTrocaFormato={false}
                         recolhido={false}
                         rotuloRecolher="Voltar"
                         temaAplicacao={temaAplicacao}
-                        titulo="JSON base"
+                        titulo={`${obterRotuloFormato(formatoDocumentoReferencia)} original`}
+                      />
+                    ) : (
+                      <EditorJson
+                        aoAlterarJsonBruto={setJsonBruto}
+                        aoAlterarFormatoDocumento={aoAlterarFormatoDocumentoModificado}
+                        aoAlternarEditor={() => setEditorRecolhido((valorAtual) => !valorAtual)}
+                        aoCarregarArquivo={aoCarregarArquivo}
+                        autoDetectarFormatoAoColar
+                        erroJson={erroJson}
+                        formatoDocumento={formatoDocumento}
+                        jsonBruto={jsonBruto}
+                        legenda="Modificado"
+                        permitirTrocaFormato={false}
+                        recolhido={false}
+                        temaAplicacao={temaAplicacao}
+                        titulo={`${obterRotuloFormato(formatoDocumento)} modificado`}
                       />
                     )}
                   </div>
@@ -960,6 +1100,7 @@ export default function App() {
         aoFechar={() => setNoSelecionadoParaEdicao(null)}
         aoRemoverNo={aoRemoverNo}
         aoRenomearChave={aoRenomearChave}
+        formatoDocumento={formatoDocumento}
         key={noSelecionadoParaEdicao?.id ?? "modal-fechado"}
         noEditavel={noSelecionadoParaEdicao}
       />

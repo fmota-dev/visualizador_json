@@ -83,6 +83,8 @@ export function construirElementosDoGrafo(
       id: no.id,
       type: "cartaoJson",
       position: posicao,
+      width: LARGURA_CARTAO_GRAFO,
+      height: ALTURA_CARTAO_GRAFO,
       data: {
         idNo: no.id,
         chave: no.chave,

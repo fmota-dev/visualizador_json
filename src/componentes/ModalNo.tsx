@@ -1,10 +1,16 @@
 import { useMemo, useState } from "react";
-import type { NoEditavel, ValorJson } from "../tipos/json";
+import type { FormatoDocumento, NoEditavel, ValorJson } from "../tipos/json";
+import {
+  obterRotuloFormato,
+  parsearDocumento,
+  serializarDocumento,
+} from "../utilitarios/documentos";
 import { formatarCaminho } from "../utilitarios/json";
 
 export interface PropsModalNo {
   aberto: boolean;
   noEditavel: NoEditavel | null;
+  formatoDocumento: FormatoDocumento;
   aoFechar: () => void;
   aoConfirmar: (valor: ValorJson) => void;
   aoAdicionarFilho: (chaveNova: string, valor: ValorJson) => void;
@@ -13,13 +19,24 @@ export interface PropsModalNo {
   aoDuplicarNo: () => void;
 }
 
-function criarValorInicial(noEditavel: NoEditavel | null) {
+function criarValorInicial(
+  noEditavel: NoEditavel | null,
+  formatoDocumento: FormatoDocumento,
+) {
   if (!noEditavel) {
     return "";
   }
 
   if (noEditavel.tipo === "object" || noEditavel.tipo === "array") {
-    return JSON.stringify(noEditavel.valor, null, 2);
+    try {
+      if (formatoDocumento === "xml" || formatoDocumento === "csv") {
+        return JSON.stringify(noEditavel.valor, null, 2);
+      }
+
+      return serializarDocumento(noEditavel.valor, formatoDocumento);
+    } catch {
+      return JSON.stringify(noEditavel.valor, null, 2);
+    }
   }
 
   if (noEditavel.tipo === "string") {
@@ -33,7 +50,22 @@ function criarValorInicial(noEditavel: NoEditavel | null) {
   return String(noEditavel.valor);
 }
 
-function interpretarValorEditado(noEditavel: NoEditavel, valorEditado: string): ValorJson {
+function interpretarEstruturaEditada(
+  valorEditado: string,
+  formatoDocumento: FormatoDocumento,
+) {
+  if (formatoDocumento === "xml" || formatoDocumento === "csv") {
+    return JSON.parse(valorEditado) as ValorJson;
+  }
+
+  return parsearDocumento(valorEditado, formatoDocumento).valorEstruturado;
+}
+
+function interpretarValorEditado(
+  noEditavel: NoEditavel,
+  valorEditado: string,
+  formatoDocumento: FormatoDocumento,
+): ValorJson {
   if (noEditavel.tipo === "string") {
     return valorEditado;
   }
@@ -53,16 +85,20 @@ function interpretarValorEditado(noEditavel: NoEditavel, valorEditado: string): 
     return valorEditado === "true";
   }
 
-  return JSON.parse(valorEditado) as ValorJson;
+  return interpretarEstruturaEditada(valorEditado, formatoDocumento);
 }
 
-function interpretarNovoValorEstrutural(valorEditado: string): ValorJson {
-  return JSON.parse(valorEditado) as ValorJson;
+function interpretarNovoValorEstrutural(
+  valorEditado: string,
+  formatoDocumento: FormatoDocumento,
+): ValorJson {
+  return interpretarEstruturaEditada(valorEditado, formatoDocumento);
 }
 
 export function ModalNo({
   aberto,
   noEditavel,
+  formatoDocumento,
   aoFechar,
   aoConfirmar,
   aoAdicionarFilho,
@@ -70,7 +106,9 @@ export function ModalNo({
   aoRemoverNo,
   aoDuplicarNo,
 }: PropsModalNo) {
-  const [valorEditado, setValorEditado] = useState(() => criarValorInicial(noEditavel));
+  const [valorEditado, setValorEditado] = useState(() =>
+    criarValorInicial(noEditavel, formatoDocumento),
+  );
   const [erroFormulario, setErroFormulario] = useState("");
   const [chaveNovaFilho, setChaveNovaFilho] = useState("");
   const [valorNovoFilho, setValorNovoFilho] = useState("null");
@@ -165,7 +203,11 @@ export function ModalNo({
             <p className="text-sm font-medium text-[color:var(--cor-perigo)]">{erroFormulario}</p>
           ) : (
             <p className="text-sm text-[color:var(--cor-texto-suave)]">
-              Objetos e arrays aceitam JSON completo. Strings editam apenas o texto puro.
+              Objetos e arrays aceitam{" "}
+              {formatoDocumento === "xml" || formatoDocumento === "csv"
+                ? "estrutura em JSON"
+                : `${obterRotuloFormato(formatoDocumento)} completo`}
+              . Strings editam apenas o texto puro.
             </p>
           )}
         </div>
@@ -177,7 +219,7 @@ export function ModalNo({
                 Edicao estrutural
               </p>
               <h3 className="mt-1 text-lg font-semibold text-[color:var(--cor-texto)]">
-                Acoes sobre a estrutura do JSON
+                Acoes sobre a estrutura do documento
               </h3>
             </div>
 
@@ -215,10 +257,13 @@ export function ModalNo({
                         }
                         aoAdicionarFilho(
                           chaveTratada,
-                          interpretarNovoValorEstrutural(valorNovoFilho),
+                          interpretarNovoValorEstrutural(valorNovoFilho, formatoDocumento),
                         );
                       } else {
-                        aoAdicionarFilho("", interpretarNovoValorEstrutural(valorNovoFilho));
+                        aoAdicionarFilho(
+                          "",
+                          interpretarNovoValorEstrutural(valorNovoFilho, formatoDocumento),
+                        );
                       }
                       setErroFormulario("");
                     } catch (erro) {
@@ -319,7 +364,11 @@ export function ModalNo({
             className="rounded-full bg-[color:var(--cor-destaque)] px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90"
             onClick={() => {
               try {
-                const novoValor = interpretarValorEditado(noEditavel, valorEditado);
+                const novoValor = interpretarValorEditado(
+                  noEditavel,
+                  valorEditado,
+                  formatoDocumento,
+                );
                 setErroFormulario("");
                 aoConfirmar(novoValor);
               } catch (erro) {

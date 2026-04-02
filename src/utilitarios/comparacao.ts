@@ -35,7 +35,8 @@ function marcarSubarvore(
 function compararValores(
   valorAtual: ValorJson | undefined,
   valorReferencia: ValorJson | undefined,
-  caminho: SegmentoCaminho[],
+  caminhoAtual: SegmentoCaminho[],
+  caminhoReferencia: SegmentoCaminho[],
   mapas: MapasDeDiferenca,
 ): boolean {
   if (valorAtual === undefined && valorReferencia === undefined) {
@@ -43,12 +44,12 @@ function compararValores(
   }
 
   if (valorAtual === undefined && valorReferencia !== undefined) {
-    marcarSubarvore(valorReferencia, caminho, "removido", mapas.mapaReferencia);
+    marcarSubarvore(valorReferencia, caminhoReferencia, "removido", mapas.mapaReferencia);
     return true;
   }
 
   if (valorAtual !== undefined && valorReferencia === undefined) {
-    marcarSubarvore(valorAtual, caminho, "adicionado", mapas.mapaAtual);
+    marcarSubarvore(valorAtual, caminhoAtual, "adicionado", mapas.mapaAtual);
     return true;
   }
 
@@ -56,8 +57,8 @@ function compararValores(
   const tipoReferencia = determinarTipoNo(valorReferencia as ValorJson);
 
   if (tipoAtual !== tipoReferencia) {
-    mapas.mapaAtual.set(criarIdNo(caminho), "alterado");
-    mapas.mapaReferencia.set(criarIdNo(caminho), "alterado");
+    mapas.mapaAtual.set(criarIdNo(caminhoAtual), "alterado");
+    mapas.mapaReferencia.set(criarIdNo(caminhoReferencia), "alterado");
     return true;
   }
 
@@ -66,8 +67,8 @@ function compararValores(
       JSON.stringify(valorAtual) !== JSON.stringify(valorReferencia);
 
     if (alterado) {
-      mapas.mapaAtual.set(criarIdNo(caminho), "alterado");
-      mapas.mapaReferencia.set(criarIdNo(caminho), "alterado");
+      mapas.mapaAtual.set(criarIdNo(caminhoAtual), "alterado");
+      mapas.mapaReferencia.set(criarIdNo(caminhoReferencia), "alterado");
     }
 
     return alterado;
@@ -101,7 +102,8 @@ function compararValores(
       (valorReferencia as Record<string, ValorJson> | ValorJson[])[
         chave as never
       ] as ValorJson | undefined,
-      [...caminho, chave as SegmentoCaminho],
+      [...caminhoAtual, chave as SegmentoCaminho],
+      [...caminhoReferencia, chave as SegmentoCaminho],
       mapas,
     );
 
@@ -111,8 +113,8 @@ function compararValores(
   });
 
   if (houveMudanca) {
-    mapas.mapaAtual.set(criarIdNo(caminho), "alterado");
-    mapas.mapaReferencia.set(criarIdNo(caminho), "alterado");
+    mapas.mapaAtual.set(criarIdNo(caminhoAtual), "alterado");
+    mapas.mapaReferencia.set(criarIdNo(caminhoReferencia), "alterado");
   }
 
   return houveMudanca;
@@ -130,6 +132,7 @@ export function compararJsonEstruturalmente(
   compararValores(
     valorAtual ?? undefined,
     valorReferencia ?? undefined,
+    [],
     [],
     mapas,
   );

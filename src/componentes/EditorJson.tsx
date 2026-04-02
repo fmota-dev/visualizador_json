@@ -1,11 +1,19 @@
 import Editor from "@monaco-editor/react";
-import { useRef } from "react";
-import type { ErroJson } from "../tipos/json";
+import { useEffect, useRef } from "react";
+import type { ErroJson, FormatoDocumento } from "../tipos/json";
+import {
+  detectarFormatoPorConteudo,
+  formatosDocumento,
+  obterAcceptUpload,
+  obterLinguagemEditor,
+  obterRotuloFormato,
+} from "../utilitarios/documentos";
 
 export interface PropsEditorJson {
   jsonBruto: string;
   temaAplicacao: "claro" | "escuro";
   erroJson: ErroJson | null;
+  formatoDocumento: FormatoDocumento;
   recolhido: boolean;
   legenda?: string;
   titulo?: string;
@@ -14,8 +22,11 @@ export interface PropsEditorJson {
   mostrarBotaoRecolher?: boolean;
   rotuloUpload?: string;
   rotuloRecolher?: string;
+  permitirTrocaFormato?: boolean;
+  autoDetectarFormatoAoColar?: boolean;
   aoAlterarJsonBruto: (valor: string) => void;
   aoCarregarArquivo: (arquivo: File) => void;
+  aoAlterarFormatoDocumento?: (formato: FormatoDocumento) => void;
   aoAlternarEditor?: () => void;
 }
 
@@ -65,6 +76,7 @@ export function EditorJson({
   jsonBruto,
   temaAplicacao,
   erroJson,
+  formatoDocumento,
   recolhido,
   legenda = "Editor",
   titulo = "JSON",
@@ -73,11 +85,33 @@ export function EditorJson({
   mostrarBotaoRecolher = true,
   rotuloUpload = "Upload",
   rotuloRecolher = "Recolher",
+  permitirTrocaFormato = true,
+  autoDetectarFormatoAoColar = false,
   aoAlterarJsonBruto,
   aoCarregarArquivo,
+  aoAlterarFormatoDocumento,
   aoAlternarEditor,
 }: PropsEditorJson) {
   const inputArquivoRef = useRef<HTMLInputElement>(null);
+  const editorMonacoRef = useRef<{
+    getValue: () => string;
+    onDidPaste: (callback: () => void) => { dispose: () => void };
+  } | null>(null);
+  const formatoDocumentoRef = useRef(formatoDocumento);
+  const autoDetectarAoColarRef = useRef(autoDetectarFormatoAoColar);
+  const aoAlterarFormatoDocumentoRef = useRef(aoAlterarFormatoDocumento);
+
+  useEffect(() => {
+    formatoDocumentoRef.current = formatoDocumento;
+  }, [formatoDocumento]);
+
+  useEffect(() => {
+    autoDetectarAoColarRef.current = autoDetectarFormatoAoColar;
+  }, [autoDetectarFormatoAoColar]);
+
+  useEffect(() => {
+    aoAlterarFormatoDocumentoRef.current = aoAlterarFormatoDocumento;
+  }, [aoAlterarFormatoDocumento]);
 
   if (recolhido) {
     return null;
@@ -107,15 +141,42 @@ export function EditorJson({
                 : "bg-[color:rgba(15,118,110,0.14)] text-[color:var(--cor-acao-secundaria)]"
             }`}
           >
-            {erroJson ? "JSON invalido" : "JSON valido"}
+            {erroJson
+              ? `${obterRotuloFormato(formatoDocumento)} invalido`
+              : `${obterRotuloFormato(formatoDocumento)} valido`}
           </span>
+
+          {permitirTrocaFormato && aoAlterarFormatoDocumento ? (
+            <label className="flex items-center gap-2 rounded-[18px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-painel)] px-3 py-2 text-sm text-[color:var(--cor-texto-suave)]">
+              <span className="text-[11px] font-medium uppercase tracking-[0.18em]">
+                Formato
+              </span>
+              <select
+                className="bg-transparent text-sm font-medium text-[color:var(--cor-texto)] outline-none"
+                onChange={(evento) =>
+                  aoAlterarFormatoDocumento(evento.target.value as FormatoDocumento)
+                }
+                value={formatoDocumento}
+              >
+                {formatosDocumento.map((formato) => (
+                  <option
+                    className="bg-[color:var(--cor-fundo-painel)]"
+                    key={formato}
+                    value={formato}
+                  >
+                    {obterRotuloFormato(formato)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
 
           <div className="flex flex-wrap items-center gap-2 rounded-[22px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-2 py-2">
             <button
-              aria-label="Enviar arquivo JSON"
+              aria-label={`Enviar arquivo ${obterRotuloFormato(formatoDocumento)}`}
               className={classeBotaoAcaoCompacta()}
               onClick={() => inputArquivoRef.current?.click()}
-              title="Upload do arquivo JSON"
+              title={`Upload do arquivo ${obterRotuloFormato(formatoDocumento)}`}
               type="button"
             >
               <IconeUpload />
@@ -136,7 +197,7 @@ export function EditorJson({
             ) : null}
           </div>
           <input
-            accept=".json,application/json"
+            accept={obterAcceptUpload()}
             className="hidden"
             onChange={(evento) => {
               const arquivo = evento.target.files?.[0];
@@ -153,7 +214,38 @@ export function EditorJson({
 
       <div className="min-h-0 flex-1 overflow-hidden rounded-[24px] border border-[color:var(--cor-borda)]">
         <Editor
-          defaultLanguage="json"
+          defaultLanguage={obterLinguagemEditor(formatoDocumento)}
+          language={obterLinguagemEditor(formatoDocumento)}
+          onMount={(editor) => {
+            editorMonacoRef.current = editor;
+
+            editor.onDidPaste(() => {
+              if (!autoDetectarAoColarRef.current) {
+                return;
+              }
+
+              window.requestAnimationFrame(() => {
+                const editorAtual = editorMonacoRef.current;
+                const callbackAtual = aoAlterarFormatoDocumentoRef.current;
+
+                if (!editorAtual || !callbackAtual) {
+                  return;
+                }
+
+                const proximoFormato = detectarFormatoPorConteudo(
+                  editorAtual.getValue(),
+                  formatoDocumentoRef.current,
+                );
+
+                if (
+                  proximoFormato &&
+                  proximoFormato !== formatoDocumentoRef.current
+                ) {
+                  callbackAtual(proximoFormato);
+                }
+              });
+            });
+          }}
           onChange={(valor) => aoAlterarJsonBruto(valor ?? "")}
           options={{
             automaticLayout: true,

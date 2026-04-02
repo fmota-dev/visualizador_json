@@ -1,12 +1,13 @@
-export type ModoVisualizacao = "arvore" | "grafo";
+export type ModoVisualizacao = "arvore" | "grafo" | "tabela";
 export type TemaAplicacao = "claro" | "escuro";
 export type ModoPainelVisualizador = "explorar" | "comparar";
-export type SubmodoComparacao = "texto" | "arvore" | "grafo";
+export type SubmodoComparacao = "texto" | "arvore" | "grafo" | "tabela";
 export type EscopoBusca = "todos" | "chave" | "valor" | "caminho" | "tipo";
 export type FiltroBusca = EscopoBusca;
 export type PresetLayoutGrafo = "compacto" | "equilibrado" | "amplo";
 export type StatusDiferencaNo = "igual" | "adicionado" | "removido" | "alterado";
 export type TipoNo = "object" | "array" | "string" | "number" | "boolean" | "null";
+export type FormatoDocumento = "json" | "yaml" | "toml" | "xml" | "csv";
 export type SegmentoCaminho = string | number;
 
 export type ValorJson =
@@ -32,6 +33,11 @@ export interface ErroJson {
   mensagem: string;
   linha: number;
   coluna: number;
+}
+
+export interface MetadadosTabelaCsv {
+  colunas: string[];
+  linhas: Array<Record<string, string>>;
 }
 
 export interface ResultadoBusca {

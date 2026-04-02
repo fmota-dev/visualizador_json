@@ -84,6 +84,30 @@ const metadadosDiferenca: Record<
   },
 };
 
+function obterCorMiniMapa(data: DadosNoGrafoInterativo) {
+  if (data.resultadoAtual) {
+    return "var(--cor-destaque)";
+  }
+
+  if (data.statusDiferenca === "adicionado") {
+    return "var(--cor-acao-secundaria)";
+  }
+
+  if (data.statusDiferenca === "removido") {
+    return "var(--cor-perigo)";
+  }
+
+  if (data.statusDiferenca === "alterado") {
+    return "var(--cor-destaque-forte)";
+  }
+
+  if (data.correspondeBusca) {
+    return "var(--cor-destaque)";
+  }
+
+  return "var(--cor-texto-suave)";
+}
+
 function classeCartaoNo(data: DadosNoGrafoInterativo) {
   if (data.resultadoAtual) {
     return "border-[color:var(--cor-destaque)] bg-[color:var(--cor-destaque-suave)] shadow-[0_18px_40px_rgba(199,91,18,0.16)]";
@@ -268,6 +292,11 @@ function GrafoInterno({
         const noOriginal = encontrarNoPorId(raiz, node.id);
         return {
           ...node,
+          style: {
+            ...node.style,
+            width: LARGURA_CARTAO_GRAFO,
+            height: ALTURA_CARTAO_GRAFO,
+          },
           data: {
             ...node.data,
             ativo: node.id === noAtivoId,
@@ -310,7 +339,7 @@ function GrafoInterno({
   if (!raiz) {
     return (
       <div className="flex h-full min-h-[320px] items-center justify-center rounded-[26px] border border-dashed border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] p-8 text-center text-[color:var(--cor-texto-suave)]">
-        Corrija o JSON para liberar a visualizacao em grafo.
+        Corrija o documento para liberar a visualizacao em grafo.
       </div>
     );
   }
@@ -341,7 +370,13 @@ function GrafoInterno({
         {miniMapaVisivel ? (
           <MiniMap
             className="!rounded-[18px] !border !border-[color:var(--cor-borda-forte)] !bg-[color:var(--cor-cartao-grafo)]"
+            maskColor="rgba(0, 0, 0, 0.08)"
+            nodeBorderRadius={10}
+            nodeColor={(node) => obterCorMiniMapa(node.data as DadosNoGrafoInterativo)}
+            nodeStrokeColor="var(--cor-borda-forte)"
+            nodeStrokeWidth={1.5}
             pannable
+            position="bottom-right"
             zoomable
           />
         ) : null}

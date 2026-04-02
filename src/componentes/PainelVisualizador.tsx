@@ -2,6 +2,8 @@ import { DiffEditor } from "@monaco-editor/react";
 import type { ReactNode, RefObject } from "react";
 import type {
   FiltroBusca,
+  FormatoDocumento,
+  MetadadosTabelaCsv,
   ModoPainelVisualizador,
   ModoVisualizacao,
   NoJson,
@@ -10,9 +12,11 @@ import type {
   SubmodoComparacao,
   TemaAplicacao,
 } from "../tipos/json";
+import { obterRotuloFormato } from "../utilitarios/documentos";
 import { formatarCaminho, serializarJson } from "../utilitarios/json";
 import { VisualizadorArvore } from "./VisualizadorArvore";
 import { VisualizadorGrafo } from "./VisualizadorGrafo";
+import { VisualizadorTabela } from "./VisualizadorTabela";
 
 interface ItemBreadcrumb {
   id: string;
@@ -26,6 +30,8 @@ export interface PropsPainelVisualizador {
   modoPainelVisualizador: ModoPainelVisualizador;
   submodoComparacao: SubmodoComparacao;
   modoVisualizacao: ModoVisualizacao;
+  formatoDocumento: FormatoDocumento;
+  formatoDocumentoReferencia: FormatoDocumento;
   termoBusca: string;
   filtroBusca: FiltroBusca;
   buscaAtiva: boolean;
@@ -36,9 +42,12 @@ export interface PropsPainelVisualizador {
   editorRecolhido: boolean;
   miniMapaVisivel: boolean;
   presetLayoutGrafo: PresetLayoutGrafo;
+  comparacaoMesmoFormato: boolean;
   resultadosBuscaQuantidade: number;
   jsonBruto: string;
   jsonReferenciaBruto: string;
+  metadadosTabela: MetadadosTabelaCsv | null;
+  metadadosTabelaReferencia: MetadadosTabelaCsv | null;
   feedbackCopia: string;
   noEmFoco: NoJson | null;
   itensBreadcrumb: ItemBreadcrumb[];
@@ -240,12 +249,29 @@ function ConteudoBotaoCabecalho({
   );
 }
 
+function descreverDisponibilidadeComparacao(
+  comparacaoMesmoFormato: boolean,
+  formatoDocumento: FormatoDocumento,
+) {
+  if (!comparacaoMesmoFormato) {
+    return "Formato invalido.";
+  }
+
+  if (formatoDocumento === "csv") {
+    return "Texto, Arvore e Tabela estao disponiveis para CSV x CSV.";
+  }
+
+  return "Texto, Arvore e Grafo estao disponiveis para esta combinacao.";
+}
+
 export function PainelVisualizador({
   visualizadorTelaCheia,
   temaAplicacao,
   modoPainelVisualizador,
   submodoComparacao,
   modoVisualizacao,
+  formatoDocumento,
+  formatoDocumentoReferencia,
   termoBusca,
   filtroBusca,
   buscaAtiva,
@@ -256,9 +282,12 @@ export function PainelVisualizador({
   editorRecolhido,
   miniMapaVisivel,
   presetLayoutGrafo,
+  comparacaoMesmoFormato,
   resultadosBuscaQuantidade,
   jsonBruto,
   jsonReferenciaBruto,
+  metadadosTabela,
+  metadadosTabelaReferencia,
   feedbackCopia,
   noEmFoco,
   itensBreadcrumb,
@@ -300,12 +329,28 @@ export function PainelVisualizador({
   aoEditarNo,
 }: PropsPainelVisualizador) {
   const modoComparacaoAtivo = modoPainelVisualizador === "comparar";
+  const tabelaDisponivel = formatoDocumento === "csv" && Boolean(metadadosTabela);
+  const grafoDisponivel = formatoDocumento !== "csv";
+  const tabelaComparacaoDisponivel =
+    comparacaoMesmoFormato &&
+    formatoDocumento === "csv" &&
+    Boolean(metadadosTabela) &&
+    Boolean(metadadosTabelaReferencia);
+  const grafoComparacaoDisponivel = comparacaoMesmoFormato && formatoDocumento !== "csv";
+  const resumoDisponibilidadeComparacao = descreverDisponibilidadeComparacao(
+    comparacaoMesmoFormato,
+    formatoDocumento,
+  );
   const tituloVisualizador = modoComparacaoAtivo
     ? submodoComparacao === "texto"
       ? "Comparacao em Texto"
+      : submodoComparacao === "tabela"
+        ? "Comparacao em Tabela"
       : submodoComparacao === "arvore"
         ? "Comparacao em Arvore"
         : "Comparacao em Grafo"
+    : modoVisualizacao === "tabela"
+      ? "Modo Tabela"
     : modoVisualizacao === "arvore"
       ? "Modo Arvore"
       : "Modo Grafo";
@@ -377,6 +422,15 @@ export function PainelVisualizador({
             <div className="flex rounded-full border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] p-1">
               {!modoComparacaoAtivo ? (
                 <>
+                  {tabelaDisponivel ? (
+                    <button
+                      className={classeBotaoCabecalho(modoVisualizacao === "tabela")}
+                      onClick={() => aoAlterarModoVisualizacao("tabela")}
+                      type="button"
+                    >
+                      <ConteudoBotaoCabecalho icone={<IconeTexto />} rotulo="Tabela" />
+                    </button>
+                  ) : null}
                   <button
                     className={classeBotaoCabecalho(modoVisualizacao === "arvore")}
                     onClick={() => aoAlterarModoVisualizacao("arvore")}
@@ -384,33 +438,70 @@ export function PainelVisualizador({
                   >
                     <ConteudoBotaoCabecalho icone={<IconeArvore />} rotulo="Arvore" />
                   </button>
-                  <button
-                    className={classeBotaoCabecalho(modoVisualizacao === "grafo")}
-                    onClick={() => aoAlterarModoVisualizacao("grafo")}
-                    type="button"
-                  >
-                    <ConteudoBotaoCabecalho icone={<IconeGrafo />} rotulo="Grafo" />
-                  </button>
+                  {grafoDisponivel ? (
+                    <button
+                      className={classeBotaoCabecalho(modoVisualizacao === "grafo")}
+                      onClick={() => aoAlterarModoVisualizacao("grafo")}
+                      type="button"
+                    >
+                      <ConteudoBotaoCabecalho icone={<IconeGrafo />} rotulo="Grafo" />
+                    </button>
+                  ) : null}
                 </>
               ) : (
                 <>
                   <button
                     className={classeBotaoCabecalho(submodoComparacao === "texto")}
+                    disabled={!comparacaoMesmoFormato}
                     onClick={() => aoAlterarSubmodoComparacao("texto")}
+                    title={
+                      comparacaoMesmoFormato
+                        ? "Comparar em texto"
+                        : "Formato invalido."
+                    }
                     type="button"
                   >
                     <ConteudoBotaoCabecalho icone={<IconeTexto />} rotulo="Texto" />
                   </button>
                   <button
+                    className={classeBotaoCabecalho(submodoComparacao === "tabela")}
+                    disabled={!tabelaComparacaoDisponivel}
+                    onClick={() => aoAlterarSubmodoComparacao("tabela")}
+                    title={
+                      tabelaComparacaoDisponivel
+                        ? "Comparar em tabela"
+                        : !comparacaoMesmoFormato
+                          ? "Formato invalido."
+                          : "Tabela so fica disponivel em CSV x CSV."
+                    }
+                    type="button"
+                  >
+                    <ConteudoBotaoCabecalho icone={<IconeTexto />} rotulo="Tabela" />
+                  </button>
+                  <button
                     className={classeBotaoCabecalho(submodoComparacao === "arvore")}
+                    disabled={!comparacaoMesmoFormato}
                     onClick={() => aoAlterarSubmodoComparacao("arvore")}
+                    title={
+                      comparacaoMesmoFormato
+                        ? "Comparar em arvore"
+                        : "Formato invalido."
+                    }
                     type="button"
                   >
                     <ConteudoBotaoCabecalho icone={<IconeArvore />} rotulo="Arvore" />
                   </button>
                   <button
                     className={classeBotaoCabecalho(submodoComparacao === "grafo")}
+                    disabled={!grafoComparacaoDisponivel}
                     onClick={() => aoAlterarSubmodoComparacao("grafo")}
+                    title={
+                      grafoComparacaoDisponivel
+                        ? "Comparar em grafo"
+                        : !comparacaoMesmoFormato
+                          ? "Formato invalido."
+                          : "Grafo so fica disponivel para formatos com grafo."
+                    }
                     type="button"
                   >
                     <ConteudoBotaoCabecalho icone={<IconeGrafo />} rotulo="Grafo" />
@@ -446,8 +537,10 @@ export function PainelVisualizador({
                 >
                   Recolher Tudo
                 </button>
-                {(!modoComparacaoAtivo && modoVisualizacao === "grafo") ||
-                (modoComparacaoAtivo && submodoComparacao === "grafo") ? (
+                {(!modoComparacaoAtivo && modoVisualizacao === "grafo" && grafoDisponivel) ||
+                (modoComparacaoAtivo &&
+                  submodoComparacao === "grafo" &&
+                  grafoComparacaoDisponivel) ? (
                   <>
                     <button
                       className="rounded-2xl px-4 py-3 text-left text-sm text-[color:var(--cor-texto)] transition hover:bg-[color:var(--cor-destaque-suave)]"
@@ -592,11 +685,22 @@ export function PainelVisualizador({
           </div>
         ) : (
           <div className="rounded-[24px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-4 py-3 text-sm text-[color:var(--cor-texto-suave)]">
-            O modo texto usa o diff do editor. A busca continua disponivel nos modos arvore e grafo.
+            {modoComparacaoAtivo && !comparacaoMesmoFormato
+              ? "Formato invalido."
+              : "O modo texto usa o diff do editor. A busca continua disponivel nas visualizacoes estruturadas."}
           </div>
         )}
 
-        {modoComparacaoAtivo && submodoComparacao !== "texto" ? (
+        {modoComparacaoAtivo ? (
+          <div className="rounded-[24px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-4 py-3 text-sm text-[color:var(--cor-texto-suave)]">
+            <strong className="text-[color:var(--cor-texto)]">
+              {obterRotuloFormato(formatoDocumentoReferencia)} x {obterRotuloFormato(formatoDocumento)}
+            </strong>{" "}
+            • {resumoDisponibilidadeComparacao}
+          </div>
+        ) : null}
+
+        {modoComparacaoAtivo && comparacaoMesmoFormato && submodoComparacao !== "texto" ? (
           <div className="flex flex-col gap-3 rounded-[24px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
               {itensLegendaDiferenca.map((item) => (
@@ -609,10 +713,10 @@ export function PainelVisualizador({
               ))}
             </div>
             <p className="text-sm text-[color:var(--cor-texto-suave)]">
-              A coluna <strong className="text-[color:var(--cor-texto)]">Referencia</strong> destaca o
-              que so existe no JSON base, e a coluna{" "}
-              <strong className="text-[color:var(--cor-texto)]">Atual</strong> mostra o que entrou ou
-              mudou no JSON em edicao.
+              A coluna <strong className="text-[color:var(--cor-texto)]">Original</strong> destaca o
+              que so existe no documento original, e a coluna{" "}
+              <strong className="text-[color:var(--cor-texto)]">Modificado</strong> mostra o que entrou
+              ou mudou em relacao ao original.
             </p>
           </div>
         ) : null}
@@ -663,12 +767,12 @@ export function PainelVisualizador({
                   onClick={() =>
                     void aoCopiarTexto(
                       serializarJson(noEmFoco.valor),
-                      "JSON copiado.",
+                      "Valor copiado.",
                     )
                   }
                   type="button"
                 >
-                  Copiar JSON
+                  Copiar valor
                 </button>
               </div>
             </div>
@@ -684,7 +788,17 @@ export function PainelVisualizador({
 
       <div className="min-h-0 flex-1 p-3 sm:p-4">
         {!modoComparacaoAtivo ? (
-          modoVisualizacao === "arvore" ? (
+          modoVisualizacao === "tabela" ? (
+            <VisualizadorTabela
+              aoEditarNo={aoEditarNo}
+              aoSelecionarNo={aoSelecionarNo}
+              idsCorrespondentes={idsCorrespondentes}
+              metadadosTabela={metadadosTabela}
+              noAtivoId={noAtivoId ?? resultadoAtualId}
+              raiz={arvoreJson}
+              resultadoAtualId={resultadoAtualId}
+            />
+          ) : modoVisualizacao === "arvore" ? (
             <VisualizadorArvore
               aoAlternarExpansao={aoAlternarExpansao}
               aoSelecionarNo={aoSelecionarNo}
@@ -712,23 +826,53 @@ export function PainelVisualizador({
               resultadoAtualId={resultadoAtualId}
             />
           )
+        ) : !comparacaoMesmoFormato ? (
+          <div className="flex h-full min-h-0 items-center justify-center">
+            <div className="flex w-full max-w-2xl flex-col gap-3 rounded-[28px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] p-6 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[color:var(--cor-texto-suave)]">
+                Comparacao
+              </p>
+              <h3 className="text-xl font-semibold text-[color:var(--cor-texto)]">
+                Formato invalido.
+              </h3>
+            </div>
+          </div>
         ) : submodoComparacao === "texto" ? (
-          <div className="h-full overflow-hidden rounded-[26px] border border-[color:var(--cor-borda)]">
-            <DiffEditor
-              height="100%"
-              language="json"
-              modified={jsonBruto}
-              options={{
-                automaticLayout: true,
-                fontSize: 14,
-                minimap: { enabled: false },
-                renderSideBySide: true,
-                scrollBeyondLastLine: false,
-                wordWrap: "on",
-              }}
-              original={jsonReferenciaBruto}
-              theme={temaAplicacao === "escuro" ? "vs-dark" : "light"}
-            />
+          <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[26px] border border-[color:var(--cor-borda)] bg-[color:var(--cor-fundo-elevado)] p-3">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[color:var(--cor-texto-suave)]">
+                  Diff textual
+                </p>
+                <h3 className="text-lg font-semibold text-[color:var(--cor-texto)]">
+                  {obterRotuloFormato(formatoDocumentoReferencia)} original x{" "}
+                  {obterRotuloFormato(formatoDocumento)} modificado
+                </h3>
+              </div>
+              <p className="text-xs text-[color:var(--cor-texto-suave)]">
+                Original a esquerda, modificado a direita.
+              </p>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-hidden rounded-[22px] border border-[color:var(--cor-borda)]">
+              <DiffEditor
+                height="100%"
+                language="plaintext"
+                modified={jsonBruto}
+                options={{
+                  automaticLayout: true,
+                  fontSize: 14,
+                  minimap: { enabled: false },
+                  originalEditable: false,
+                  readOnly: true,
+                  renderSideBySide: true,
+                  scrollBeyondLastLine: false,
+                  wordWrap: "on",
+                }}
+                original={jsonReferenciaBruto}
+                theme={temaAplicacao === "escuro" ? "vs-dark" : "light"}
+              />
+            </div>
           </div>
         ) : (
           <div className="grid h-full min-h-0 gap-3 xl:grid-cols-2">
@@ -743,22 +887,34 @@ export function PainelVisualizador({
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[color:var(--cor-texto-suave)]">
-                    Referencia
+                    Original
                   </p>
                   <h3 className="text-lg font-semibold text-[color:var(--cor-texto)]">
-                    JSON base
+                    {obterRotuloFormato(formatoDocumentoReferencia)} original
                   </h3>
                 </div>
                 {!visualizacaoReferenciaDisponivel ? (
-                  <span className="text-xs text-[color:var(--cor-perigo)]">JSON invalido</span>
+                  <span className="text-xs text-[color:var(--cor-perigo)]">
+                    {obterRotuloFormato(formatoDocumentoReferencia)} invalido
+                  </span>
                 ) : null}
               </div>
               <p className="mb-3 text-xs text-[color:var(--cor-texto-suave)]">
-                Vermelho indica o que existe so na referencia. Laranja marca o que mudou entre os dois
+                Vermelho indica o que existe so no original. Laranja marca o que mudou entre os dois
                 lados.
               </p>
               <div className="min-h-0 flex-1">
-                {submodoComparacao === "arvore" ? (
+                {submodoComparacao === "tabela" ? (
+                  <VisualizadorTabela
+                    aoEditarNo={aoEditarNo}
+                    aoSelecionarNo={aoSelecionarNo}
+                    idsCorrespondentes={new Set<string>()}
+                    mapaDiferencas={mapaDiferencasReferencia}
+                    metadadosTabela={metadadosTabelaReferencia}
+                    permitirEdicao={false}
+                    raiz={arvoreReferenciaJson}
+                  />
+                ) : submodoComparacao === "arvore" ? (
                   <VisualizadorArvore
                     aoAlternarExpansao={aoAlternarExpansao}
                     aoSelecionarNo={aoSelecionarNo}
@@ -800,21 +956,35 @@ export function PainelVisualizador({
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[color:var(--cor-texto-suave)]">
-                    Atual
+                    Modificado
                   </p>
                   <h3 className="text-lg font-semibold text-[color:var(--cor-texto)]">
-                    JSON em edicao
+                    {obterRotuloFormato(formatoDocumento)} modificado
                   </h3>
                 </div>
                 {!visualizacaoDisponivel ? (
-                  <span className="text-xs text-[color:var(--cor-perigo)]">JSON invalido</span>
+                  <span className="text-xs text-[color:var(--cor-perigo)]">
+                    {obterRotuloFormato(formatoDocumento)} invalido
+                  </span>
                 ) : null}
               </div>
               <p className="mb-3 text-xs text-[color:var(--cor-texto-suave)]">
-                Verde indica o que foi adicionado. Laranja marca o que mudou em relacao ao JSON base.
+                Verde indica o que foi adicionado no modificado. Laranja marca o que mudou em relacao ao
+                original.
               </p>
               <div className="min-h-0 flex-1">
-                {submodoComparacao === "arvore" ? (
+                {submodoComparacao === "tabela" ? (
+                  <VisualizadorTabela
+                    aoEditarNo={aoEditarNo}
+                    aoSelecionarNo={aoSelecionarNo}
+                    idsCorrespondentes={idsCorrespondentes}
+                    mapaDiferencas={mapaDiferencasAtual}
+                    metadadosTabela={metadadosTabela}
+                    noAtivoId={noAtivoId ?? resultadoAtualId}
+                    raiz={arvoreJson}
+                    resultadoAtualId={resultadoAtualId}
+                  />
+                ) : submodoComparacao === "arvore" ? (
                   <VisualizadorArvore
                     aoAlternarExpansao={aoAlternarExpansao}
                     aoSelecionarNo={aoSelecionarNo}
