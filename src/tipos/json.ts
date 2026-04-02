@@ -1,5 +1,11 @@
 export type ModoVisualizacao = "arvore" | "grafo";
 export type TemaAplicacao = "claro" | "escuro";
+export type ModoPainelVisualizador = "explorar" | "comparar";
+export type SubmodoComparacao = "texto" | "arvore" | "grafo";
+export type EscopoBusca = "todos" | "chave" | "valor" | "caminho" | "tipo";
+export type FiltroBusca = EscopoBusca;
+export type PresetLayoutGrafo = "compacto" | "equilibrado" | "amplo";
+export type StatusDiferencaNo = "igual" | "adicionado" | "removido" | "alterado";
 export type TipoNo = "object" | "array" | "string" | "number" | "boolean" | "null";
 export type SegmentoCaminho = string | number;
 

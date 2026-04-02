@@ -13,6 +13,11 @@ import { VisualizadorArvore } from "./componentes/VisualizadorArvore";
 import { VisualizadorGrafo } from "./componentes/VisualizadorGrafo";
 import { useBuscaJson } from "./hooks/useBuscaJson";
 import { useJsonParseado } from "./hooks/useJsonParseado";
+import {
+  carregarWorkspacePersistido,
+  usePersistenciaWorkspace,
+  workspacePersistidoPadrao,
+} from "./hooks/usePersistenciaWorkspace";
 import { useTema } from "./hooks/useTema";
 import type {
   ModoVisualizacao,
@@ -112,20 +117,30 @@ function classeBotaoTema(ativo = false) {
 }
 
 export default function App() {
-  const [jsonBruto, setJsonBruto] = useState(EXEMPLO_INICIAL);
+  const [workspaceInicial] = useState(() => carregarWorkspacePersistido());
+
+  const [jsonBruto, setJsonBruto] = useState(
+    workspaceInicial.jsonBruto || EXEMPLO_INICIAL,
+  );
   const [modoVisualizacao, setModoVisualizacao] =
-    useState<ModoVisualizacao>("grafo");
-  const [temaAplicacao, setTemaAplicacao] = useState<TemaAplicacao>("claro");
-  const [termoBusca, setTermoBusca] = useState("");
+    useState<ModoVisualizacao>(workspaceInicial.modoVisualizacao);
+  const [temaAplicacao, setTemaAplicacao] = useState<TemaAplicacao>(
+    workspaceInicial.temaAplicacao,
+  );
+  const [termoBusca, setTermoBusca] = useState(workspaceInicial.termoBusca);
   const [indiceResultadoAtual, setIndiceResultadoAtual] = useState(0);
   const [nosExpandidos, setNosExpandidos] = useState<Set<string>>(
-    () => new Set(["raiz"]),
+    () => new Set(workspaceInicial.nosExpandidos),
   );
   const [noSelecionadoParaEdicao, setNoSelecionadoParaEdicao] =
     useState<NoEditavel | null>(null);
-  const [editorRecolhido, setEditorRecolhido] = useState(false);
+  const [editorRecolhido, setEditorRecolhido] = useState(
+    workspaceInicial.editorRecolhido,
+  );
   const [visualizadorTelaCheia, setVisualizadorTelaCheia] = useState(false);
-  const [larguraPainelEditor, setLarguraPainelEditor] = useState(31);
+  const [larguraPainelEditor, setLarguraPainelEditor] = useState(
+    workspaceInicial.larguraPainelEditor,
+  );
   const [redimensionandoEditor, setRedimensionandoEditor] = useState(false);
 
   const areaPrincipalRef = useRef<HTMLElement>(null);
@@ -141,6 +156,22 @@ export default function App() {
   );
 
   useTema(temaAplicacao);
+
+  usePersistenciaWorkspace({
+    jsonBruto,
+    jsonReferenciaBruto: workspacePersistidoPadrao.jsonReferenciaBruto,
+    temaAplicacao,
+    modoVisualizacao,
+    modoPainelVisualizador: workspacePersistidoPadrao.modoPainelVisualizador,
+    submodoComparacao: workspacePersistidoPadrao.submodoComparacao,
+    termoBusca,
+    filtroBusca: workspacePersistidoPadrao.filtroBusca,
+    nosExpandidos: Array.from(nosExpandidos),
+    larguraPainelEditor,
+    editorRecolhido,
+    presetLayoutGrafo: workspacePersistidoPadrao.presetLayoutGrafo,
+    miniMapaVisivel: workspacePersistidoPadrao.miniMapaVisivel,
+  });
 
   useEffect(() => {
     larguraPainelEditorRef.current = larguraPainelEditor;
