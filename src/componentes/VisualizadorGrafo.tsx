@@ -12,7 +12,14 @@ import {
   type NodeProps,
   type NodeTypes,
 } from "@xyflow/react";
-import { memo, useEffect, useMemo, type RefObject } from "react";
+import {
+  memo,
+  useEffect,
+  useMemo,
+  type CSSProperties,
+  type MouseEvent as EventoMouseReact,
+  type RefObject,
+} from "react";
 import type {
   DadosNoGrafo,
   NoJson,
@@ -49,6 +56,22 @@ interface DadosNoGrafoInterativo extends DadosNoGrafo {
   permitirEdicao: boolean;
   aoAlternarExpansao: (id: string) => void;
   aoEditar: () => void;
+}
+
+interface PropsNoMiniMapa {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  style?: CSSProperties;
+  color?: string;
+  strokeColor?: string;
+  strokeWidth?: number;
+  className?: string;
+  borderRadius?: number;
+  selected?: boolean;
+  onClick?: (evento: EventoMouseReact<SVGGElement>, id: string) => void;
 }
 
 const classesTipoNo: Record<DadosNoGrafo["tipo"], string> = {
@@ -107,6 +130,87 @@ function obterCorMiniMapa(data: DadosNoGrafoInterativo) {
 
   return "var(--cor-texto-suave)";
 }
+
+const NoMiniMapaPersonalizado = memo(function NoMiniMapaPersonalizado({
+  id,
+  x,
+  y,
+  width,
+  height,
+  style,
+  color = "var(--cor-texto-suave)",
+  strokeColor = "var(--cor-borda-forte)",
+  strokeWidth = 1.2,
+  className,
+  borderRadius = 8,
+  selected = false,
+  onClick,
+}: PropsNoMiniMapa) {
+  const larguraUtil = Math.max(width, 16);
+  const alturaUtil = Math.max(height, 12);
+  const preenchimento = Math.max(Math.min(larguraUtil * 0.06, 5), 2);
+  const alturaCabecalho = Math.max(alturaUtil * 0.22, 3);
+  const alturaLinha = Math.max(alturaUtil * 0.12, 2);
+  const larguraTitulo = Math.max(larguraUtil * 0.5, 8);
+  const larguraLinhaPrimaria = Math.max(larguraUtil * 0.74, 10);
+  const larguraLinhaSecundaria = Math.max(larguraUtil * 0.48, 8);
+
+  return (
+    <g
+      className={className}
+      style={style}
+      transform={`translate(${x}, ${y})`}
+      onClick={(evento) => onClick?.(evento, id)}
+    >
+      <rect
+        fill="var(--cor-cartao-grafo)"
+        height={alturaUtil}
+        rx={borderRadius}
+        ry={borderRadius}
+        stroke={strokeColor}
+        strokeOpacity={selected ? 1 : 0.85}
+        strokeWidth={selected ? strokeWidth + 0.8 : strokeWidth}
+        width={larguraUtil}
+      />
+      <rect
+        fill={color}
+        height={alturaCabecalho}
+        opacity={0.92}
+        rx={Math.max(borderRadius / 2.2, 2)}
+        ry={Math.max(borderRadius / 2.2, 2)}
+        width={larguraTitulo}
+        x={preenchimento}
+        y={preenchimento}
+      />
+      <rect
+        fill="var(--cor-texto-suave)"
+        height={alturaLinha}
+        opacity={0.34}
+        rx={alturaLinha / 2}
+        ry={alturaLinha / 2}
+        width={larguraLinhaPrimaria}
+        x={preenchimento}
+        y={preenchimento + alturaCabecalho + Math.max(alturaUtil * 0.12, 2)}
+      />
+      <rect
+        fill="var(--cor-texto-suave)"
+        height={alturaLinha}
+        opacity={0.22}
+        rx={alturaLinha / 2}
+        ry={alturaLinha / 2}
+        width={larguraLinhaSecundaria}
+        x={preenchimento}
+        y={
+          preenchimento +
+          alturaCabecalho +
+          Math.max(alturaUtil * 0.12, 2) +
+          alturaLinha +
+          Math.max(alturaUtil * 0.08, 2)
+        }
+      />
+    </g>
+  );
+});
 
 function classeCartaoNo(data: DadosNoGrafoInterativo) {
   if (data.resultadoAtual) {
@@ -369,10 +473,12 @@ function GrafoInterno({
         <Background color="var(--cor-borda)" gap={24} size={1} />
         {miniMapaVisivel ? (
           <MiniMap
+            bgColor="var(--cor-cartao-grafo)"
             className="!rounded-[18px] !border !border-[color:var(--cor-borda-forte)] !bg-[color:var(--cor-cartao-grafo)]"
             maskColor="rgba(0, 0, 0, 0.08)"
             nodeBorderRadius={10}
             nodeColor={(node) => obterCorMiniMapa(node.data as DadosNoGrafoInterativo)}
+            nodeComponent={NoMiniMapaPersonalizado}
             nodeStrokeColor="var(--cor-borda-forte)"
             nodeStrokeWidth={1.5}
             pannable

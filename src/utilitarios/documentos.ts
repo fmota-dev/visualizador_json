@@ -196,6 +196,37 @@ function normalizarValorEstruturado(valor: unknown): ValorJson {
   return String(valor);
 }
 
+function limparNosDeTextoVaziosXml(valor: unknown): unknown {
+  if (
+    valor === null ||
+    typeof valor === "string" ||
+    typeof valor === "number" ||
+    typeof valor === "boolean"
+  ) {
+    return valor;
+  }
+
+  if (Array.isArray(valor)) {
+    return valor.map((item) => limparNosDeTextoVaziosXml(item));
+  }
+
+  if (typeof valor === "object") {
+    const entradasLimpas = Object.entries(valor as Record<string, unknown>)
+      .map(([chave, item]) => [chave, limparNosDeTextoVaziosXml(item)] as const)
+      .filter(([chave, item]) => {
+        if (chave !== "#texto") {
+          return true;
+        }
+
+        return typeof item !== "string" || item.trim().length > 0;
+      });
+
+    return Object.fromEntries(entradasLimpas);
+  }
+
+  return valor;
+}
+
 function obterErroPadrao(mensagem: string): ErroJson {
   return {
     mensagem,
@@ -426,7 +457,10 @@ export function parsearDocumento(bruto: string, formato: FormatoDocumento) {
           };
         }
 
-        const valorEstruturado = normalizarValorEstruturado(parserXml.parse(bruto));
+        const valorXml = parserXml.parse(bruto);
+        const valorEstruturado = normalizarValorEstruturado(
+          limparNosDeTextoVaziosXml(valorXml),
+        );
         return { valorEstruturado, erroDocumento: null, metadadosTabela: null };
       }
       case "csv": {
